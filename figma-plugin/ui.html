@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      body {
+        margin: 0;
+        background: #18181b;
+        color: #f4f4f5;
+      }
+
+      main {
+        padding: 16px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 16px;
+        line-height: 24px;
+      }
+
+      p {
+        margin: 6px 0 0;
+        color: #a1a1aa;
+        font-size: 12px;
+        line-height: 18px;
+      }
+
+      label {
+        display: block;
+        margin-top: 14px;
+        color: #d4d4d8;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      input {
+        box-sizing: border-box;
+        width: 100%;
+        height: 38px;
+        margin-top: 6px;
+        border: 1px solid #3f3f46;
+        border-radius: 10px;
+        background: #09090b;
+        color: #f4f4f5;
+        outline: none;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+
+      input:focus {
+        border-color: #22c55e;
+      }
+
+      button {
+        width: 100%;
+        height: 40px;
+        margin-top: 14px;
+        border: 0;
+        border-radius: 12px;
+        background: #22c55e;
+        color: white;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      button.secondary {
+        background: #27272a;
+        color: #e4e4e7;
+      }
+
+      .status {
+        margin-top: 14px;
+        border: 1px solid #27272a;
+        border-radius: 12px;
+        background: #09090b;
+        padding: 10px;
+        color: #d4d4d8;
+        font-size: 12px;
+        line-height: 18px;
+        white-space: pre-wrap;
+      }
+
+      .hint {
+        color: #71717a;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>IconOps 团队图标写入桥</h1>
+      <p>从网页端拉取 Icon Spec JSON，并在当前 Figma 文件创建可编辑 native nodes。不会导入 SVG。</p>
+
+      <label for="server">本地服务地址</label>
+      <input id="server" value="http://localhost:3000" />
+
+      <label for="job">任务 ID（可为空，默认拉取最新）</label>
+      <input id="job" placeholder="figma-job-..." />
+
+      <button id="write">立即拉取并写入</button>
+      <button id="auto" class="secondary">自动监听：开启中</button>
+      <button id="close" class="secondary">关闭</button>
+
+      <div id="status" class="status hint">自动监听已开启：先在网页顶部点击“自动写入 Figma”，插件会自动拉取 JSON 并写入当前画布。</div>
+    </main>
+
+    <script>
+      const serverInput = document.getElementById("server");
+      const jobInput = document.getElementById("job");
+      const statusBox = document.getElementById("status");
+      const autoButton = document.getElementById("auto");
+      let autoEnabled = true;
+      let autoTimer;
+
+      function setStatus(message) {
+        statusBox.textContent = message;
+        statusBox.classList.remove("hint");
+      }
+
+      function updateAutoButton() {
+        autoButton.textContent = autoEnabled ? "自动监听：开启中" : "自动监听：已关闭";
+      }
+
+      function startAutoPoll() {
+        window.clearInterval(autoTimer);
+        autoTimer = window.setInterval(() => {
+          if (!autoEnabled) return;
+          const serverUrl = serverInput.value.trim().replace(/\/$/, "");
+          if (!serverUrl) return;
+          parent.postMessage({ pluginMessage: { type: "poll-queued-job", serverUrl } }, "*");
+        }, 2500);
+      }
+
+      document.getElementById("write").onclick = () => {
+        const serverUrl = serverInput.value.trim().replace(/\/$/, "");
+        const jobId = jobInput.value.trim();
+        if (!serverUrl) {
+          setStatus("请先填写本地服务地址。");
+          return;
+        }
+
+        setStatus("正在拉取任务…");
+        parent.postMessage({ pluginMessage: { type: "write-job", serverUrl, jobId } }, "*");
+      };
+
+      autoButton.onclick = () => {
+        autoEnabled = !autoEnabled;
+        const serverUrl = serverInput.value.trim().replace(/\/$/, "");
+        if (serverUrl) {
+          parent.postMessage({ pluginMessage: { type: "heartbeat", serverUrl, listening: autoEnabled } }, "*");
+        }
+        updateAutoButton();
+        setStatus(autoEnabled ? "自动监听已开启。网页投递新任务后会自动写入。" : "自动监听已关闭。你仍可点击“立即拉取并写入”。");
+      };
+
+      document.getElementById("close").onclick = () => {
+        parent.postMessage({ pluginMessage: { type: "close" } }, "*");
+      };
+
+      onmessage = (event) => {
+        const message = event.data.pluginMessage;
+        if (!message) return;
+        if (message.type === "status") setStatus(message.message);
+        if (message.type === "job-id") jobInput.value = message.jobId;
+      };
+
+      updateAutoButton();
+      startAutoPoll();
+    </script>
+  </body>
+</html>

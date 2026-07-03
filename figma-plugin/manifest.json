@@ -1,0 +1,13 @@
+{
+  "name": "IconOps 团队图标写入桥",
+  "id": "iconops-team-icon-native-bridge",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["none"],
+    "devAllowedDomains": ["http://localhost:3000"],
+    "reasoning": "IconOps needs to fetch local JSON write jobs from the development web app and report write status while running as a development plugin."
+  }
+}
