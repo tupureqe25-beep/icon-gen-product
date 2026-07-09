@@ -1,0 +1,3389 @@
+{
+  "meta": {
+    "name": "baijiahao-team-icon-index",
+    "version": "2026-07-07-v2",
+    "status": "distilled-from-mature-figma-library",
+    "source": {
+      "name": "百家号PC Component / icon / 基础元素",
+      "fileKey": "jRtQ7X2U4sNUukyxcJGyoX",
+      "frameId": "12535:12665",
+      "auditedAt": "2026-07-07",
+      "directIconNodesRead": 151
+    },
+    "purpose": "Offline semantic index for stable Baijiahao icon metaphor matching without reading Figma at runtime.",
+    "rules": [
+      "Use this index before runtime Figma lookup.",
+      "Do not copy geometry or path data from this index.",
+      "Use nodeId only for optional source verification or reuse when Figma access is available.",
+      "Use semanticDirection and visualElements to choose or adapt icon forms.",
+      "If exact or near match exists, do not silently generate a competing metaphor.",
+      "For matchType=exact or canonical-status, treat the mature icon as source-locked by default; preserve visible silhouette, orientation, inner mark family, endpoint count, and visual weight.",
+      "If an exact entry has needsSourceVerificationForPixelMatch=true, inspect the Figma node via nodeId or a source screenshot before SVG preview; otherwise stop and ask for source verification rather than generating a plausible substitute.",
+      "Do not convert exact mature-library hits into semantically similar but visually different metaphors such as share nodes, generic arrows, cards, shields, or badges."
+    ],
+    "directIconNodesRead": 151
+  },
+  "families": [
+    {
+      "id": "navigation",
+      "label": "导航与基础操作",
+      "intentTags": [
+        "导航",
+        "返回",
+        "展开",
+        "收起",
+        "更多",
+        "关闭",
+        "完成",
+        "添加",
+        "上下左右"
+      ],
+      "metaphor": "single directional mark or minimal operation glyph",
+      "qualityNotes": "Keep these extremely simple. One arrow/check/cross/plus family should not be decorated with secondary meaning."
+    },
+    {
+      "id": "content",
+      "label": "内容生产与管理",
+      "intentTags": [
+        "内容",
+        "文章",
+        "草稿",
+        "图文",
+        "小说",
+        "发布",
+        "发送",
+        "编辑",
+        "附件"
+      ],
+      "metaphor": "document/card/list plus one action mark",
+      "qualityNotes": "Prefer document/card/list structures. Add only one secondary mark such as pen, check, arrow, or text line."
+    },
+    {
+      "id": "data",
+      "label": "数据与增长",
+      "intentTags": [
+        "数据",
+        "看板",
+        "增长",
+        "收益",
+        "资产",
+        "积分",
+        "阅读量",
+        "任务热度"
+      ],
+      "metaphor": "chart/card/dashboard/coin-like business object",
+      "qualityNotes": "Keep analytics symbols readable; avoid combining chart, trend, coin, and badge in one 24px icon."
+    },
+    {
+      "id": "status",
+      "label": "状态反馈",
+      "intentTags": [
+        "成功",
+        "失败",
+        "提示",
+        "警示",
+        "疑问",
+        "详情",
+        "时间"
+      ],
+      "metaphor": "canonical filled status circle or outlined info/warning/time glyph",
+      "qualityNotes": "Use canonical colored filled status icons for pure success/failure/warning states. Do not force them into monochrome outline unless the usage is not a status result."
+    },
+    {
+      "id": "commerce",
+      "label": "电商与权益",
+      "intentTags": [
+        "电商",
+        "带货",
+        "收益",
+        "权益",
+        "购物袋",
+        "橱窗",
+        "结算"
+      ],
+      "metaphor": "bag/window/settlement/revenue object",
+      "qualityNotes": "Use ecommerce metaphors only when commercial context is explicit. Do not use coin/wallet for generic data or success."
+    },
+    {
+      "id": "media",
+      "label": "媒体播放",
+      "intentTags": [
+        "播放",
+        "暂停",
+        "音量",
+        "静音",
+        "全屏",
+        "直播回看"
+      ],
+      "metaphor": "video control glyphs",
+      "qualityNotes": "Keep control icons conventional; do not add Baijiahao content marks unless context requires."
+    },
+    {
+      "id": "ai",
+      "label": "AI 与智能能力",
+      "intentTags": [
+        "AI",
+        "智能",
+        "诊断",
+        "数字人",
+        "AI功能"
+      ],
+      "metaphor": "diagnosis magnifier, digital-human head, or AI capability card",
+      "qualityNotes": "Do not overuse random spark clusters. Bind AI marks to a clear object/action such as document, magnifier, assistant, or function card."
+    }
+  ],
+  "icons": [
+    {
+      "name": "BjhBasicSousuo",
+      "label": "搜索",
+      "aliases": [
+        "查找",
+        "检索",
+        "搜索内容",
+        "查询",
+        "find",
+        "search"
+      ],
+      "nodeId": "12535:13154",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "discovery/search action",
+      "visualElements": [
+        "large circular lens",
+        "45-degree handle"
+      ],
+      "shapeSummary": "magnifier composed of a 36px lens and short handle in the 48px master",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "strokeMaster": 4,
+        "usesLocalFill": true,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "search box",
+        "table search",
+        "content discovery",
+        "filter panel search field"
+      ],
+      "avoidWhen": [
+        "筛选 should use funnel",
+        "排序 should use ordered arrows"
+      ]
+    },
+    {
+      "name": "BjhBasicNeirong",
+      "label": "内容",
+      "aliases": [
+        "内容管理",
+        "文章",
+        "文档",
+        "稿件",
+        "内容卡片",
+        "content",
+        "document"
+      ],
+      "nodeId": "12535:13161",
+      "family": "content",
+      "matchType": "exact-or-base",
+      "semanticDirection": "content/document card",
+      "visualElements": [
+        "rounded document/card",
+        "two short text bars"
+      ],
+      "shapeSummary": "36×36 card plus 2 text bars; strong baseline for content-management concepts",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "strokeMaster": 4,
+        "visibleParts": 3
+      },
+      "useWhen": [
+        "content management",
+        "article item",
+        "document-like business object",
+        "basis for content + status/action variants"
+      ],
+      "avoidWhen": [
+        "folder/file organization",
+        "pure media/video type"
+      ]
+    },
+    {
+      "name": "内容分销",
+      "label": "内容分销",
+      "aliases": [
+        "分销",
+        "分发",
+        "内容分发",
+        "分发渠道",
+        "分销渠道",
+        "distribution",
+        "content distribution"
+      ],
+      "nodeId": "12535:13400",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "content distribution / multi-channel dispatch",
+      "visualElements": [
+        "hexagon/container-like content core",
+        "center Y-shaped inner branch",
+        "single upward stem splitting into two diagonal arms"
+      ],
+      "shapeSummary": "mature team icon for content distribution; outer form is a rounded hexagon-like container, inner mark is a simple Y-shaped branch with one lower vertical stem and two upper diagonal arms. Reuse this silhouette for 内容分销 instead of generating share-node dots, outward arrows, or generic content + dispatch marks.",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceNodeContainsImageAsset": true,
+        "requiresNativeRedrawForFinal": true,
+        "sourceLockedSilhouette": true,
+        "forbiddenPreviewSubstitutions": [
+          "three endpoint dots",
+          "share network nodes",
+          "outward arrow",
+          "generic content card",
+          "export/share metaphor"
+        ],
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "内容分销",
+        "content distribution",
+        "content list distribution action",
+        "multi-channel content dispatch"
+      ],
+      "avoidWhen": [
+        "generic share",
+        "export",
+        "download",
+        "plain content management"
+      ]
+    },
+    {
+      "name": "BjhBasicShuju",
+      "label": "数据",
+      "aliases": [
+        "数据看板",
+        "统计",
+        "分析",
+        "趋势",
+        "analytics",
+        "dashboard",
+        "chart"
+      ],
+      "nodeId": "12535:13174",
+      "family": "data",
+      "matchType": "exact-or-base",
+      "semanticDirection": "data/dashboard/chart",
+      "visualElements": [
+        "dashboard/chart container",
+        "trend or metric marks"
+      ],
+      "shapeSummary": "dashboard frame with internal chart marks; use as baseline for data-related variants",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "strokeMaster": 4,
+        "visibleParts": 3
+      },
+      "useWhen": [
+        "data dashboard",
+        "analytics card",
+        "metric overview",
+        "growth data"
+      ],
+      "avoidWhen": [
+        "money/revenue if commercial asset is explicit",
+        "reading count if eye metaphor is required"
+      ]
+    },
+    {
+      "name": "BjhBasicChenggong1",
+      "label": "成功",
+      "aliases": [
+        "发布成功",
+        "完成成功",
+        "通过",
+        "成功状态",
+        "success",
+        "passed"
+      ],
+      "nodeId": "12535:13156",
+      "family": "status",
+      "matchType": "canonical-status",
+      "semanticDirection": "pure success state",
+      "visualElements": [
+        "green filled circle",
+        "white check mark"
+      ],
+      "shapeSummary": "canonical filled success circle, not a generic outline check",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "fill": "#00BA73",
+        "mark": "#FFFFFF",
+        "statusColor": true,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "pure success feedback",
+        "success toast",
+        "status result",
+        "publish success when no content object is needed"
+      ],
+      "avoidWhen": [
+        "content-specific publish success requiring document + check"
+      ]
+    },
+    {
+      "name": "BjhBasicShibai1",
+      "label": "失败",
+      "aliases": [
+        "发布失败",
+        "失败状态",
+        "未通过",
+        "错误",
+        "error",
+        "failed"
+      ],
+      "nodeId": "12535:13157",
+      "family": "status",
+      "matchType": "canonical-status",
+      "semanticDirection": "pure failure state",
+      "visualElements": [
+        "red filled circle",
+        "white cross"
+      ],
+      "shapeSummary": "canonical filled failure circle",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "fill": "#F54242",
+        "mark": "#FFFFFF",
+        "statusColor": true,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "pure failure feedback",
+        "error result",
+        "review failed state"
+      ],
+      "avoidWhen": [
+        "content-specific failure requiring document + warning"
+      ]
+    },
+    {
+      "name": "BjhBasicJingshi1",
+      "label": "警示",
+      "aliases": [
+        "警告",
+        "风险",
+        "违规",
+        "提醒",
+        "warning",
+        "risk"
+      ],
+      "nodeId": "12535:13159",
+      "family": "status",
+      "matchType": "canonical-status",
+      "semanticDirection": "pure warning state",
+      "visualElements": [
+        "amber filled circle",
+        "white exclamation mark"
+      ],
+      "shapeSummary": "canonical filled warning circle",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "fill": "#FAAD14",
+        "mark": "#FFFFFF",
+        "statusColor": true,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "pure warning",
+        "risk alert",
+        "violation prompt",
+        "attention state"
+      ],
+      "avoidWhen": [
+        "review diagnosis if magnifier or document context is required"
+      ]
+    },
+    {
+      "name": "BjhBasicTishi1",
+      "label": "提示",
+      "aliases": [
+        "信息提示",
+        "说明",
+        "info",
+        "notice"
+      ],
+      "nodeId": "12535:13158",
+      "family": "status",
+      "matchType": "canonical-status",
+      "semanticDirection": "pure info/tip state",
+      "visualElements": [
+        "blue filled circle",
+        "white info mark"
+      ],
+      "shapeSummary": "canonical filled info circle",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "fill": "#3855D5",
+        "mark": "#FFFFFF",
+        "statusColor": true,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "information tip",
+        "system notice",
+        "neutral prompt"
+      ],
+      "avoidWhen": [
+        "notification bell",
+        "marketing announcement"
+      ]
+    },
+    {
+      "name": "BjhBasicBianji",
+      "label": "编辑",
+      "aliases": [
+        "修改",
+        "撰写",
+        "写作",
+        "改写",
+        "AI改写",
+        "智能改写",
+        "AI写作",
+        "智能写作",
+        "编辑内容",
+        "edit",
+        "write"
+      ],
+      "nodeId": "12535:13287",
+      "family": "content",
+      "matchType": "exact-or-adjacent",
+      "semanticDirection": "editing/writing action",
+      "visualElements": [
+        "pen or pencil stroke"
+      ],
+      "shapeSummary": "minimal editing stroke; combine with content/document for content-edit variants",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "strokeMaster": 4
+      },
+      "useWhen": [
+        "edit button",
+        "rewrite action",
+        "article editing",
+        "AI rewrite base action"
+      ],
+      "avoidWhen": [
+        "settings/optimization if sliders are clearer"
+      ]
+    },
+    {
+      "name": "BjhBasicFenxiang",
+      "label": "分享",
+      "aliases": [
+        "转发",
+        "外发",
+        "共享",
+        "share"
+      ],
+      "nodeId": "12535:13288",
+      "family": "content",
+      "matchType": "exact-or-adjacent",
+      "semanticDirection": "share/outward action",
+      "visualElements": [
+        "outward directional share mark"
+      ],
+      "shapeSummary": "team share action; use as direction reference, not generic social graph unless social sharing is explicit",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "strokeMaster": 4
+      },
+      "useWhen": [
+        "content share",
+        "external sharing",
+        "card action share"
+      ],
+      "avoidWhen": [
+        "导出 should use export",
+        "发送 should use send/paper-plane family"
+      ]
+    },
+    {
+      "name": "BjhBasicShangchuan",
+      "label": "上传",
+      "aliases": [
+        "导入",
+        "上传文件",
+        "提交素材",
+        "upload",
+        "import"
+      ],
+      "nodeId": "12535:13289",
+      "family": "content",
+      "matchType": "exact-or-adjacent",
+      "semanticDirection": "upload/import into system",
+      "visualElements": [
+        "tray or base line",
+        "upward/inward arrow"
+      ],
+      "shapeSummary": "upload family with arrow and receiving base",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "strokeMaster": 4,
+        "visibleParts": 3
+      },
+      "useWhen": [
+        "upload file",
+        "import content",
+        "submit material"
+      ],
+      "avoidWhen": [
+        "download",
+        "export",
+        "share"
+      ]
+    },
+    {
+      "name": "BjhBasicXiazai",
+      "label": "下载",
+      "aliases": [
+        "保存到本地",
+        "下载文件",
+        "download"
+      ],
+      "nodeId": "12535:13199",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "download/save out of system",
+      "visualElements": [
+        "downward arrow",
+        "receiving baseline/tray"
+      ],
+      "shapeSummary": "download action with clear downward direction",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "strokeMaster": 4,
+        "visibleParts": 3,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "download asset",
+        "save file",
+        "export-to-local if download wording is explicit"
+      ],
+      "avoidWhen": [
+        "导出 business export",
+        "上传/import"
+      ]
+    },
+    {
+      "name": "BjhBasicDaochu",
+      "label": "导出",
+      "aliases": [
+        "导出数据",
+        "导出文件",
+        "export"
+      ],
+      "nodeId": "12535:13258",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "business export/output",
+      "visualElements": [
+        "outward export mark",
+        "file/list base"
+      ],
+      "shapeSummary": "export action in team style; may use controlled solid/boolean parts for clarity",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "allowsSolid": true,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "export list",
+        "export data",
+        "batch export"
+      ],
+      "avoidWhen": [
+        "share/social sharing",
+        "download-only action"
+      ]
+    },
+    {
+      "name": "BjhBasicPaixu",
+      "label": "排序",
+      "aliases": [
+        "升序",
+        "降序",
+        "排序方式",
+        "sort",
+        "order"
+      ],
+      "nodeId": "12535:13208",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "sort/order operation",
+      "visualElements": [
+        "ordered arrows",
+        "parallel/list marks"
+      ],
+      "shapeSummary": "sort glyph family; distinguish from filter and search",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "strokeMaster": 4,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "table/list ordering",
+        "sort menu"
+      ],
+      "avoidWhen": [
+        "筛选 funnel",
+        "搜索 magnifier"
+      ]
+    },
+    {
+      "name": "BjhBasicSaixuan",
+      "label": "筛选",
+      "aliases": [
+        "过滤",
+        "条件筛选",
+        "filter"
+      ],
+      "nodeId": "12535:13558",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "filter condition operation",
+      "visualElements": [
+        "funnel/filter shape"
+      ],
+      "shapeSummary": "filter family, use for narrowing list/table results",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "filter panel",
+        "condition filter",
+        "table filter"
+      ],
+      "avoidWhen": [
+        "search",
+        "sort"
+      ]
+    },
+    {
+      "name": "BjhBasicTongzhi",
+      "label": "通知",
+      "aliases": [
+        "消息通知",
+        "提醒",
+        "公告提醒",
+        "notification",
+        "bell"
+      ],
+      "nodeId": "12535:13276",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "system notification",
+      "visualElements": [
+        "bell/notification mark"
+      ],
+      "shapeSummary": "notification glyph; use instead of megaphone unless announcement/broadcast is explicit",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "notification entry",
+        "message reminder",
+        "system alert entrance"
+      ],
+      "avoidWhen": [
+        "pure warning status",
+        "marketing announcement"
+      ]
+    },
+    {
+      "name": "BjhBasicXinxi",
+      "label": "信息",
+      "aliases": [
+        "消息",
+        "私信",
+        "评论消息",
+        "message",
+        "info"
+      ],
+      "nodeId": "12535:13277",
+      "family": "content",
+      "matchType": "exact-or-adjacent",
+      "semanticDirection": "message/information bubble",
+      "visualElements": [
+        "speech/message container",
+        "small inner marks"
+      ],
+      "shapeSummary": "message/info family; separate from status info circle",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 4
+      },
+      "useWhen": [
+        "message center",
+        "comment/message",
+        "information communication"
+      ],
+      "avoidWhen": [
+        "status提示/info",
+        "notification bell"
+      ]
+    },
+    {
+      "name": "BjhBasicShoucang",
+      "label": "收藏",
+      "aliases": [
+        "保存",
+        "收藏夹",
+        "bookmark",
+        "favorite"
+      ],
+      "nodeId": "12535:13271",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "bookmark/favorite collection",
+      "visualElements": [
+        "bookmark or star-like favorite mark"
+      ],
+      "shapeSummary": "collection/favorite action; decide bookmark vs star based on product context",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "collect content",
+        "favorite item",
+        "save-to-collection"
+      ],
+      "avoidWhen": [
+        "download/save file",
+        "rating star"
+      ]
+    },
+    {
+      "name": "BjhBasicYanjing",
+      "label": "浏览",
+      "aliases": [
+        "预览",
+        "查看",
+        "可见",
+        "阅读量",
+        "eye",
+        "view"
+      ],
+      "nodeId": "12535:13272",
+      "family": "content",
+      "matchType": "exact-or-adjacent",
+      "semanticDirection": "view/visibility",
+      "visualElements": [
+        "eye outline",
+        "pupil/center mark"
+      ],
+      "shapeSummary": "viewing eye metaphor; can support reading-count concepts when paired with data context",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 2
+      },
+      "useWhen": [
+        "view",
+        "preview",
+        "visibility",
+        "reading count with analytics context"
+      ],
+      "avoidWhen": [
+        "search/discovery",
+        "browse as generic navigation if list/card is clearer"
+      ]
+    },
+    {
+      "name": "BjhBasicDianzan",
+      "label": "点赞",
+      "aliases": [
+        "喜欢",
+        "赞",
+        "like",
+        "thumbs up"
+      ],
+      "nodeId": "12535:13231",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "like/approval engagement",
+      "visualElements": [
+        "thumb/like mark"
+      ],
+      "shapeSummary": "engagement action; do not use for approval status unless user means social like",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 2,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "engagement like",
+        "social content action"
+      ],
+      "avoidWhen": [
+        "审核通过",
+        "成功状态"
+      ]
+    },
+    {
+      "name": "BjhBasicYonghu",
+      "label": "用户",
+      "aliases": [
+        "账号",
+        "作者",
+        "创作者",
+        "个人",
+        "user",
+        "account"
+      ],
+      "nodeId": "12535:13178",
+      "family": "content",
+      "matchType": "exact-or-base",
+      "semanticDirection": "single user/account",
+      "visualElements": [
+        "head circle",
+        "shoulder/body curve"
+      ],
+      "shapeSummary": "single user silhouette in outline style",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "strokeMaster": 4,
+        "visibleParts": 3
+      },
+      "useWhen": [
+        "account",
+        "profile",
+        "creator identity",
+        "single user"
+      ],
+      "avoidWhen": [
+        "团队/group",
+        "粉丝 group/growth"
+      ]
+    },
+    {
+      "name": "BjhBasicGuanzhu",
+      "label": "关注",
+      "aliases": [
+        "粉丝",
+        "新增粉丝",
+        "关注者",
+        "follow",
+        "fans"
+      ],
+      "nodeId": "12535:13717",
+      "family": "content",
+      "matchType": "adjacent",
+      "semanticDirection": "follow/fan relationship",
+      "visualElements": [
+        "relationship/follow mark"
+      ],
+      "shapeSummary": "use as source for fans/follow concepts; add plus only for new fans",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529"
+      },
+      "useWhen": [
+        "follow",
+        "fans",
+        "new follower if paired with plus"
+      ],
+      "avoidWhen": [
+        "generic user account"
+      ]
+    },
+    {
+      "name": "BjhBasicRiqi",
+      "label": "日期",
+      "aliases": [
+        "日历",
+        "时间安排",
+        "calendar",
+        "date"
+      ],
+      "nodeId": "12535:13251",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "date/calendar",
+      "visualElements": [
+        "calendar container",
+        "top binding/divider"
+      ],
+      "shapeSummary": "calendar/date object",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 2,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "date field",
+        "schedule date",
+        "calendar"
+      ],
+      "avoidWhen": [
+        "history/recent time; use clock"
+      ]
+    },
+    {
+      "name": "BjhBasicShijian",
+      "label": "时间",
+      "aliases": [
+        "时钟",
+        "历史",
+        "最近",
+        "定时",
+        "time",
+        "clock"
+      ],
+      "nodeId": "12535:13227",
+      "family": "status",
+      "matchType": "exact-or-adjacent",
+      "semanticDirection": "time/clock",
+      "visualElements": [
+        "circle clock",
+        "hour/minute hands"
+      ],
+      "shapeSummary": "time state; separate from date/calendar",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 3
+      },
+      "useWhen": [
+        "time",
+        "history",
+        "schedule time",
+        "recent activity"
+      ],
+      "avoidWhen": [
+        "calendar date"
+      ]
+    },
+    {
+      "name": "BjhBasicShezhi",
+      "label": "设置",
+      "aliases": [
+        "配置",
+        "偏好",
+        "系统设置",
+        "settings",
+        "configure"
+      ],
+      "nodeId": "12535:13254",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "settings/configuration",
+      "visualElements": [
+        "gear-like setting mark"
+      ],
+      "shapeSummary": "configuration glyph; avoid using for optimization unless user explicitly means settings",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 2,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "settings page",
+        "configuration action"
+      ],
+      "avoidWhen": [
+        "AI优化; use sliders/check/spark",
+        "filter; use funnel"
+      ]
+    },
+    {
+      "name": "BjhBasicShanchu",
+      "label": "删除",
+      "aliases": [
+        "移除",
+        "清空",
+        "垃圾桶",
+        "delete",
+        "remove"
+      ],
+      "nodeId": "12535:13228",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "delete/remove permanently",
+      "visualElements": [
+        "trash can",
+        "lid",
+        "inner bars"
+      ],
+      "shapeSummary": "trash metaphor with multiple parts; keep density controlled in variants",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 5,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "delete",
+        "remove permanently",
+        "clear item"
+      ],
+      "avoidWhen": [
+        "关闭/dismiss; use close cross"
+      ]
+    },
+    {
+      "name": "BjhBasicLiebiao",
+      "label": "列表",
+      "aliases": [
+        "清单",
+        "目录",
+        "list"
+      ],
+      "nodeId": "12535:13257",
+      "family": "content",
+      "matchType": "exact-or-base",
+      "semanticDirection": "list/table view",
+      "visualElements": [
+        "parallel list lines",
+        "container/list marks"
+      ],
+      "shapeSummary": "list view base for table/list concepts",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 2
+      },
+      "useWhen": [
+        "list view",
+        "table/list management"
+      ],
+      "avoidWhen": [
+        "content document if card/document is clearer"
+      ]
+    },
+    {
+      "name": "草稿",
+      "label": "草稿",
+      "aliases": [
+        "草稿箱",
+        "未发布",
+        "draft"
+      ],
+      "nodeId": "12535:13415",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "draft document state",
+      "visualElements": [
+        "document/card",
+        "draft state mark"
+      ],
+      "shapeSummary": "team draft icon; use for unpublished content",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 2,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "draft",
+        "unpublished article",
+        "draft box"
+      ],
+      "avoidWhen": [
+        "archive",
+        "deleted content"
+      ]
+    },
+    {
+      "name": "发送",
+      "label": "发送",
+      "aliases": [
+        "发出",
+        "提交",
+        "send",
+        "paper plane"
+      ],
+      "nodeId": "12535:13459",
+      "family": "content",
+      "matchType": "exact-or-adjacent",
+      "semanticDirection": "send outward",
+      "visualElements": [
+        "paper-plane or send arrow"
+      ],
+      "shapeSummary": "minimal send glyph; useful for publish/send concepts when paper-plane metaphor is intended",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 1
+      },
+      "useWhen": [
+        "send message",
+        "publish/send action",
+        "submit outward"
+      ],
+      "avoidWhen": [
+        "share social",
+        "export data"
+      ]
+    },
+    {
+      "name": "智能诊断",
+      "label": "智能诊断",
+      "aliases": [
+        "AI诊断",
+        "诊断",
+        "智能分析",
+        "问题检测",
+        "diagnosis",
+        "AI diagnose"
+      ],
+      "nodeId": "12535:13408",
+      "family": "ai",
+      "matchType": "exact-or-base",
+      "semanticDirection": "AI diagnosis / inspection",
+      "visualElements": [
+        "magnifier",
+        "inner signal/waveform"
+      ],
+      "shapeSummary": "diagnosis should use magnifier + diagnostic signal, not random spark cluster",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 2
+      },
+      "useWhen": [
+        "smart diagnosis",
+        "AI inspection",
+        "content problem detection",
+        "assistant diagnostic tool"
+      ],
+      "avoidWhen": [
+        "generic AI generation",
+        "pure search"
+      ]
+    },
+    {
+      "name": "数字人",
+      "label": "数字人",
+      "aliases": [
+        "虚拟人",
+        "数字员工",
+        "AI人像",
+        "digital human",
+        "avatar"
+      ],
+      "nodeId": "12535:13232",
+      "family": "ai",
+      "matchType": "exact-or-adjacent",
+      "semanticDirection": "digital human / avatar assistant",
+      "visualElements": [
+        "head/avatar",
+        "digital/assistant structure"
+      ],
+      "shapeSummary": "digital-human family for avatar/assistant concepts",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529"
+      },
+      "useWhen": [
+        "digital human",
+        "AI avatar",
+        "virtual assistant persona"
+      ],
+      "avoidWhen": [
+        "generic user",
+        "fans/follow"
+      ]
+    },
+    {
+      "name": "BjhBasicDianshangaigongneng",
+      "label": "电商AI功能",
+      "aliases": [
+        "电商AI",
+        "AI带货",
+        "智能带货",
+        "AI商品功能"
+      ],
+      "nodeId": "12535:13764",
+      "family": "commerce",
+      "matchType": "adjacent",
+      "semanticDirection": "AI commerce capability",
+      "visualElements": [
+        "commerce object",
+        "AI/function mark"
+      ],
+      "shapeSummary": "source for ecommerce AI feature metaphors",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529"
+      },
+      "useWhen": [
+        "AI ecommerce tools",
+        "shopping/content commerce assistant"
+      ],
+      "avoidWhen": [
+        "generic AI writing",
+        "non-commerce assistant"
+      ]
+    },
+    {
+      "name": "BjhBasicDianshangdaihuo",
+      "label": "电商带货",
+      "aliases": [
+        "带货",
+        "商品带货",
+        "电商",
+        "commerce",
+        "selling"
+      ],
+      "nodeId": "12535:13756",
+      "family": "commerce",
+      "matchType": "exact-or-adjacent",
+      "semanticDirection": "commerce selling / product promotion",
+      "visualElements": [
+        "commerce/selling object"
+      ],
+      "shapeSummary": "use for ecommerce-selling concepts, not generic content distribution",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529"
+      },
+      "useWhen": [
+        "product selling",
+        "ecommerce promotion",
+        "creator commerce"
+      ],
+      "avoidWhen": [
+        "content distribution without commerce"
+      ]
+    },
+    {
+      "name": "BjhBasicDianshangshouyi",
+      "label": "电商收益",
+      "aliases": [
+        "收益",
+        "收入",
+        "变现",
+        "电商收入",
+        "revenue",
+        "income"
+      ],
+      "nodeId": "12535:13744",
+      "family": "commerce",
+      "matchType": "exact-or-adjacent",
+      "semanticDirection": "commerce revenue",
+      "visualElements": [
+        "revenue/coin/card mark",
+        "commerce context"
+      ],
+      "shapeSummary": "business revenue family; prefer over generic data chart when money is explicit",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 4
+      },
+      "useWhen": [
+        "income",
+        "revenue",
+        "ecommerce earning",
+        "monetization"
+      ],
+      "avoidWhen": [
+        "data overview without money"
+      ]
+    },
+    {
+      "name": "BjhBasicBofang",
+      "label": "播放",
+      "aliases": [
+        "开始播放",
+        "play"
+      ],
+      "nodeId": "12535:13731",
+      "family": "media",
+      "matchType": "exact",
+      "semanticDirection": "media play",
+      "visualElements": [
+        "play triangle/control mark"
+      ],
+      "shapeSummary": "conventional media control",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "video play",
+        "audio play"
+      ],
+      "avoidWhen": [
+        "publish/send"
+      ]
+    },
+    {
+      "name": "BjhBasicZanting",
+      "label": "暂停",
+      "aliases": [
+        "pause",
+        "停止播放"
+      ],
+      "nodeId": "12535:13247",
+      "family": "media",
+      "matchType": "exact",
+      "semanticDirection": "media pause",
+      "visualElements": [
+        "two vertical bars"
+      ],
+      "shapeSummary": "conventional pause control",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "pause media",
+        "pause playback"
+      ],
+      "avoidWhen": [
+        "stop/cancel"
+      ]
+    },
+    {
+      "name": "BjhBasicQuanping",
+      "label": "全屏",
+      "aliases": [
+        "放大",
+        "进入全屏",
+        "fullscreen"
+      ],
+      "nodeId": "12535:13725",
+      "family": "media",
+      "matchType": "exact",
+      "semanticDirection": "fullscreen/expand media",
+      "visualElements": [
+        "corner expand marks"
+      ],
+      "shapeSummary": "fullscreen control with corner marks",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "visibleParts": 4,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "fullscreen",
+        "media expand"
+      ],
+      "avoidWhen": [
+        "navigation expand/collapse"
+      ]
+    },
+    {
+      "name": "BjhBasicShouye",
+      "label": "首页",
+      "aliases": [
+        "主页",
+        "home",
+        "首页入口"
+      ],
+      "nodeId": "12535:13160",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "home/main entry",
+      "visualElements": [
+        "house/home outline",
+        "base mark"
+      ],
+      "shapeSummary": "mature team icon for 首页; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "首页",
+        "主页",
+        "主导航 home"
+      ],
+      "avoidWhen": [
+        "内容页",
+        "返回"
+      ]
+    },
+    {
+      "name": "BjhBasicHuodong",
+      "label": "活动",
+      "aliases": [
+        "运营活动",
+        "活动中心",
+        "campaign",
+        "activity"
+      ],
+      "nodeId": "12535:13173",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "campaign/activity",
+      "visualElements": [
+        "activity/card or flag-like business mark"
+      ],
+      "shapeSummary": "mature team icon for 活动; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "活动入口",
+        "运营活动",
+        "活动中心"
+      ],
+      "avoidWhen": [
+        "课程",
+        "通知"
+      ]
+    },
+    {
+      "name": "BjhBasicBianxian",
+      "label": "变现",
+      "aliases": [
+        "收益变现",
+        "商业化",
+        "monetization"
+      ],
+      "nodeId": "12535:13175",
+      "family": "commerce",
+      "matchType": "exact",
+      "semanticDirection": "monetization/business income",
+      "visualElements": [
+        "circular business container",
+        "inner monetary/list marks"
+      ],
+      "shapeSummary": "mature team icon for 变现; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "变现",
+        "收益变现",
+        "商业化入口"
+      ],
+      "avoidWhen": [
+        "纯数据",
+        "积分"
+      ]
+    },
+    {
+      "name": "BjhBasicKecheng",
+      "label": "课程",
+      "aliases": [
+        "教程",
+        "学习",
+        "课",
+        "course",
+        "lesson"
+      ],
+      "nodeId": "12535:13176",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "course/learning content",
+      "visualElements": [
+        "book/course container",
+        "vertical divider"
+      ],
+      "shapeSummary": "mature team icon for 课程; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "课程",
+        "教程",
+        "学习内容"
+      ],
+      "avoidWhen": [
+        "文章",
+        "小说"
+      ]
+    },
+    {
+      "name": "BjhBasicKefu",
+      "label": "客服",
+      "aliases": [
+        "帮助客服",
+        "在线客服",
+        "support",
+        "customer service"
+      ],
+      "nodeId": "12535:13177",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "customer service/support",
+      "visualElements": [
+        "headset/support silhouette"
+      ],
+      "shapeSummary": "mature team icon for 客服; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "客服",
+        "在线支持",
+        "帮助客服"
+      ],
+      "avoidWhen": [
+        "普通用户",
+        "通知"
+      ]
+    },
+    {
+      "name": "BjhBasicDaima",
+      "label": "代码",
+      "aliases": [
+        "源码",
+        "开发",
+        "code",
+        "developer"
+      ],
+      "nodeId": "12535:13179",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "code/developer object",
+      "visualElements": [
+        "code container",
+        "angle bracket/slash marks"
+      ],
+      "shapeSummary": "mature team icon for 代码; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "代码",
+        "开发者",
+        "源码"
+      ],
+      "avoidWhen": [
+        "内容分销",
+        "详情"
+      ]
+    },
+    {
+      "name": "BjhBasicCard",
+      "label": "卡片",
+      "aliases": [
+        "银行卡",
+        "卡券",
+        "卡片",
+        "card"
+      ],
+      "nodeId": "12535:13273",
+      "family": "commerce",
+      "matchType": "exact",
+      "semanticDirection": "card/payment card",
+      "visualElements": [
+        "rounded card",
+        "small inner card marks"
+      ],
+      "shapeSummary": "mature team icon for 卡片; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "卡片",
+        "卡券",
+        "银行卡"
+      ],
+      "avoidWhen": [
+        "内容卡片 if content/document is intended"
+      ]
+    },
+    {
+      "name": "BjhBasicTuijian",
+      "label": "推荐",
+      "aliases": [
+        "推荐位",
+        "推荐内容",
+        "recommend"
+      ],
+      "nodeId": "12535:13274",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "recommendation",
+      "visualElements": [
+        "recommendation mark",
+        "content/action mark"
+      ],
+      "shapeSummary": "mature team icon for 推荐; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "推荐",
+        "推荐内容",
+        "推荐位"
+      ],
+      "avoidWhen": [
+        "通知",
+        "关注"
+      ]
+    },
+    {
+      "name": "BjhBasicDuihao3",
+      "label": "对号",
+      "aliases": [
+        "勾选",
+        "选中",
+        "通过",
+        "check"
+      ],
+      "nodeId": "12535:13275",
+      "family": "status",
+      "matchType": "exact",
+      "semanticDirection": "generic check/action completion",
+      "visualElements": [
+        "check mark"
+      ],
+      "shapeSummary": "mature team icon for 对号; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "勾选",
+        "选中",
+        "完成动作"
+      ],
+      "avoidWhen": [
+        "纯成功状态; use BjhBasicChenggong1"
+      ]
+    },
+    {
+      "name": "BjhBasicYeqian",
+      "label": "页签",
+      "aliases": [
+        "标签页",
+        "tab",
+        "页卡"
+      ],
+      "nodeId": "12535:13278",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "tab/page tab",
+      "visualElements": [
+        "tab container/mark"
+      ],
+      "shapeSummary": "mature team icon for 页签; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "页签",
+        "标签页",
+        "tab navigation"
+      ],
+      "avoidWhen": [
+        "标签/tag if metadata tag"
+      ]
+    },
+    {
+      "name": "BjhBasicFujian",
+      "label": "附件",
+      "aliases": [
+        "上传附件",
+        "文件附件",
+        "attachment",
+        "paperclip"
+      ],
+      "nodeId": "12535:13279",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "attachment/file relation",
+      "visualElements": [
+        "paperclip/attachment mark"
+      ],
+      "shapeSummary": "mature team icon for 附件; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "附件",
+        "上传附件",
+        "文件关联"
+      ],
+      "avoidWhen": [
+        "链接",
+        "上传"
+      ]
+    },
+    {
+      "name": "BjhBasicShang",
+      "label": "上",
+      "aliases": [
+        "向上",
+        "上箭头",
+        "up"
+      ],
+      "nodeId": "12535:13280",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "up direction",
+      "visualElements": [
+        "up arrow"
+      ],
+      "shapeSummary": "mature team icon for 上; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "向上",
+        "收起方向",
+        "上移"
+      ],
+      "avoidWhen": [
+        "上传 if file action is intended"
+      ]
+    },
+    {
+      "name": "小说",
+      "label": "小说",
+      "aliases": [
+        "网文",
+        "书籍",
+        "小说内容",
+        "novel"
+      ],
+      "nodeId": "12535:13291",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "novel/long-form text content",
+      "visualElements": [
+        "book/document reading mark"
+      ],
+      "shapeSummary": "mature team icon for 小说; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "小说",
+        "网文",
+        "长文内容"
+      ],
+      "avoidWhen": [
+        "文章",
+        "课程"
+      ]
+    },
+    {
+      "name": "BjhBasicGouwudai",
+      "label": "购物袋",
+      "aliases": [
+        "商品",
+        "购物",
+        "电商商品",
+        "shopping bag"
+      ],
+      "nodeId": "12535:13349",
+      "family": "commerce",
+      "matchType": "exact",
+      "semanticDirection": "shopping/product bag",
+      "visualElements": [
+        "shopping bag"
+      ],
+      "shapeSummary": "mature team icon for 购物袋; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "商品",
+        "购物袋",
+        "电商商品"
+      ],
+      "avoidWhen": [
+        "权益",
+        "收益"
+      ]
+    },
+    {
+      "name": "直播回看",
+      "label": "直播回看",
+      "aliases": [
+        "回放",
+        "直播回放",
+        "replay",
+        "live replay"
+      ],
+      "nodeId": "12535:13393",
+      "family": "media",
+      "matchType": "exact",
+      "semanticDirection": "live replay/video playback history",
+      "visualElements": [
+        "video/playback container",
+        "replay mark"
+      ],
+      "shapeSummary": "mature team icon for 直播回看; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "直播回看",
+        "直播回放",
+        "视频回放"
+      ],
+      "avoidWhen": [
+        "普通播放",
+        "历史记录"
+      ]
+    },
+    {
+      "name": "时钟",
+      "label": "时钟",
+      "aliases": [
+        "时间",
+        "定时",
+        "clock",
+        "time"
+      ],
+      "nodeId": "12535:13423",
+      "family": "status",
+      "matchType": "exact",
+      "semanticDirection": "clock/time",
+      "visualElements": [
+        "clock circle",
+        "hands"
+      ],
+      "shapeSummary": "mature team icon for 时钟; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "时钟",
+        "时间",
+        "定时"
+      ],
+      "avoidWhen": [
+        "日期; use BjhBasicRiqi"
+      ]
+    },
+    {
+      "name": "表情",
+      "label": "表情",
+      "aliases": [
+        "emoji",
+        "情绪",
+        "表情包"
+      ],
+      "nodeId": "12535:13434",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "emoji/emotion",
+      "visualElements": [
+        "face/emoji mark"
+      ],
+      "shapeSummary": "mature team icon for 表情; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "表情",
+        "emoji",
+        "情绪表达"
+      ],
+      "avoidWhen": [
+        "用户头像",
+        "状态提示"
+      ]
+    },
+    {
+      "name": "左撤回",
+      "label": "左撤回",
+      "aliases": [
+        "撤回",
+        "撤销",
+        "undo",
+        "rollback"
+      ],
+      "nodeId": "12535:13467",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "undo/backward rollback",
+      "visualElements": [
+        "left curved/back arrow"
+      ],
+      "shapeSummary": "mature team icon for 左撤回; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "撤回",
+        "撤销",
+        "undo"
+      ],
+      "avoidWhen": [
+        "返回导航",
+        "删除"
+      ]
+    },
+    {
+      "name": "加粗",
+      "label": "加粗",
+      "aliases": [
+        "粗体",
+        "bold"
+      ],
+      "nodeId": "12535:13480",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "text bold formatting",
+      "visualElements": [
+        "bold B/text formatting mark"
+      ],
+      "shapeSummary": "mature team icon for 加粗; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "加粗",
+        "粗体",
+        "编辑器格式"
+      ],
+      "avoidWhen": [
+        "重要/强调状态"
+      ]
+    },
+    {
+      "name": "倾斜",
+      "label": "倾斜",
+      "aliases": [
+        "斜体",
+        "italic"
+      ],
+      "nodeId": "12535:13485",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "text italic formatting",
+      "visualElements": [
+        "italic text formatting mark"
+      ],
+      "shapeSummary": "mature team icon for 倾斜; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "倾斜",
+        "斜体",
+        "编辑器格式"
+      ],
+      "avoidWhen": [
+        "倾斜方向/导航"
+      ]
+    },
+    {
+      "name": "下划线",
+      "label": "下划线",
+      "aliases": [
+        "underline",
+        "文本下划线"
+      ],
+      "nodeId": "12535:13266",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "text underline formatting",
+      "visualElements": [
+        "underlined text mark"
+      ],
+      "shapeSummary": "mature team icon for 下划线; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "下划线",
+        "编辑器格式"
+      ],
+      "avoidWhen": [
+        "分割线",
+        "链接"
+      ]
+    },
+    {
+      "name": "BjhBasicRongyu",
+      "label": "荣誉",
+      "aliases": [
+        "勋章",
+        "奖章",
+        "成就",
+        "honor",
+        "badge"
+      ],
+      "nodeId": "12535:13715",
+      "family": "commerce",
+      "matchType": "exact",
+      "semanticDirection": "honor/badge achievement",
+      "visualElements": [
+        "badge/medal mark"
+      ],
+      "shapeSummary": "mature team icon for 荣誉; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "荣誉",
+        "勋章",
+        "成就"
+      ],
+      "avoidWhen": [
+        "权益",
+        "成功"
+      ]
+    },
+    {
+      "name": "BjhBasicJingshi",
+      "label": "警示描边",
+      "aliases": [
+        "警示",
+        "警告描边",
+        "warning outline"
+      ],
+      "nodeId": "12535:13212",
+      "family": "status",
+      "matchType": "exact",
+      "semanticDirection": "outlined warning/info",
+      "visualElements": [
+        "warning/info circle",
+        "exclamation/dot"
+      ],
+      "shapeSummary": "mature team icon for 警示描边; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "非填色警示",
+        "表单内警告"
+      ],
+      "avoidWhen": [
+        "纯警告状态; use BjhBasicJingshi1"
+      ]
+    },
+    {
+      "name": "BjhBasicXiangqing",
+      "label": "详情",
+      "aliases": [
+        "详情",
+        "信息详情",
+        "detail"
+      ],
+      "nodeId": "12535:13226",
+      "family": "status",
+      "matchType": "exact",
+      "semanticDirection": "details/info",
+      "visualElements": [
+        "info/detail circle",
+        "mark"
+      ],
+      "shapeSummary": "mature team icon for 详情; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "详情",
+        "信息详情",
+        "查看详情"
+      ],
+      "avoidWhen": [
+        "消息",
+        "通知"
+      ]
+    },
+    {
+      "name": "BjhBasicYiwen",
+      "label": "疑问",
+      "aliases": [
+        "问号",
+        "帮助",
+        "question",
+        "help"
+      ],
+      "nodeId": "12535:13155",
+      "family": "status",
+      "matchType": "exact",
+      "semanticDirection": "question/help",
+      "visualElements": [
+        "question circle",
+        "dot"
+      ],
+      "shapeSummary": "mature team icon for 疑问; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "疑问",
+        "帮助说明",
+        "问号"
+      ],
+      "avoidWhen": [
+        "客服",
+        "提示"
+      ]
+    },
+    {
+      "name": "BjhBasicShuaxin",
+      "label": "刷新",
+      "aliases": [
+        "重新加载",
+        "reload",
+        "refresh"
+      ],
+      "nodeId": "12535:13210",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "refresh/reload",
+      "visualElements": [
+        "single circular arrow"
+      ],
+      "shapeSummary": "mature team icon for 刷新; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "刷新",
+        "重新加载"
+      ],
+      "avoidWhen": [
+        "同步; use BjhBasicJiaohuan or sync family"
+      ]
+    },
+    {
+      "name": "BjhBasicJiaohuan",
+      "label": "交换",
+      "aliases": [
+        "切换",
+        "互换",
+        "同步交换",
+        "swap",
+        "exchange"
+      ],
+      "nodeId": "12535:13211",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "swap/exchange",
+      "visualElements": [
+        "two-way arrows"
+      ],
+      "shapeSummary": "mature team icon for 交换; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "交换",
+        "切换",
+        "互换"
+      ],
+      "avoidWhen": [
+        "刷新",
+        "更换"
+      ]
+    },
+    {
+      "name": "BjhBasicGenghuan",
+      "label": "更换",
+      "aliases": [
+        "替换",
+        "换一换",
+        "replace",
+        "change"
+      ],
+      "nodeId": "12535:13209",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "replace/change",
+      "visualElements": [
+        "change arrows/loop"
+      ],
+      "shapeSummary": "mature team icon for 更换; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "更换",
+        "替换",
+        "换一换"
+      ],
+      "avoidWhen": [
+        "刷新",
+        "交换"
+      ]
+    },
+    {
+      "name": "BjhBasicGuanbi",
+      "label": "关闭",
+      "aliases": [
+        "关闭",
+        "取消",
+        "x",
+        "close"
+      ],
+      "nodeId": "12535:13152",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "close/dismiss",
+      "visualElements": [
+        "cross mark"
+      ],
+      "shapeSummary": "mature team icon for 关闭; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "关闭",
+        "取消",
+        "弹窗关闭"
+      ],
+      "avoidWhen": [
+        "删除",
+        "返回"
+      ]
+    },
+    {
+      "name": "BjhBasicWancheng",
+      "label": "完成",
+      "aliases": [
+        "完成",
+        "勾",
+        "done",
+        "complete"
+      ],
+      "nodeId": "12535:13196",
+      "family": "status",
+      "matchType": "exact",
+      "semanticDirection": "generic completion check",
+      "visualElements": [
+        "check mark"
+      ],
+      "shapeSummary": "mature team icon for 完成; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "完成动作",
+        "步骤完成"
+      ],
+      "avoidWhen": [
+        "纯成功状态; use BjhBasicChenggong1"
+      ]
+    },
+    {
+      "name": "BjhBasicJia",
+      "label": "加号",
+      "aliases": [
+        "新增",
+        "添加",
+        "创建",
+        "plus",
+        "add"
+      ],
+      "nodeId": "12535:13198",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "add/create",
+      "visualElements": [
+        "plus mark"
+      ],
+      "shapeSummary": "mature team icon for 加号; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "新增",
+        "添加",
+        "创建"
+      ],
+      "avoidWhen": [
+        "展开更多"
+      ]
+    },
+    {
+      "name": "BjhBasicJifen",
+      "label": "积分",
+      "aliases": [
+        "积分",
+        "点数",
+        "points"
+      ],
+      "nodeId": "12535:13213",
+      "family": "commerce",
+      "matchType": "exact",
+      "semanticDirection": "points/reward value",
+      "visualElements": [
+        "coin/points badge"
+      ],
+      "shapeSummary": "mature team icon for 积分; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "积分",
+        "奖励点数"
+      ],
+      "avoidWhen": [
+        "收益",
+        "资产"
+      ]
+    },
+    {
+      "name": "BjhBasicShouji",
+      "label": "手机",
+      "aliases": [
+        "移动端",
+        "手机",
+        "mobile"
+      ],
+      "nodeId": "12535:13172",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "mobile device",
+      "visualElements": [
+        "phone outline"
+      ],
+      "shapeSummary": "mature team icon for 手机; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "手机",
+        "移动端",
+        "移动预览"
+      ],
+      "avoidWhen": [
+        "账号",
+        "设备设置"
+      ]
+    },
+    {
+      "name": "BjhBasicChuchuang",
+      "label": "橱窗",
+      "aliases": [
+        "商品橱窗",
+        "电商橱窗",
+        "shop window"
+      ],
+      "nodeId": "12535:13252",
+      "family": "commerce",
+      "matchType": "exact",
+      "semanticDirection": "shop window/showcase",
+      "visualElements": [
+        "window/storefront mark"
+      ],
+      "shapeSummary": "mature team icon for 橱窗; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "橱窗",
+        "商品橱窗",
+        "电商展示"
+      ],
+      "avoidWhen": [
+        "购物袋",
+        "卡片"
+      ]
+    },
+    {
+      "name": "BjhBasicDaohangshouqi",
+      "label": "导航收起",
+      "aliases": [
+        "收起导航",
+        "侧栏收起",
+        "collapse nav"
+      ],
+      "nodeId": "12535:13667",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "navigation collapse",
+      "visualElements": [
+        "sidebar collapse mark"
+      ],
+      "shapeSummary": "mature team icon for 导航收起; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "导航收起",
+        "侧栏收起"
+      ],
+      "avoidWhen": [
+        "普通收起箭头"
+      ]
+    },
+    {
+      "name": "BjhBasicDaohangzhankai",
+      "label": "导航展开",
+      "aliases": [
+        "展开导航",
+        "侧栏展开",
+        "expand nav"
+      ],
+      "nodeId": "12535:13673",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "navigation expand",
+      "visualElements": [
+        "sidebar expand mark"
+      ],
+      "shapeSummary": "mature team icon for 导航展开; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "导航展开",
+        "侧栏展开"
+      ],
+      "avoidWhen": [
+        "普通展开箭头"
+      ]
+    },
+    {
+      "name": "BjhBasicZhankai1",
+      "label": "展开",
+      "aliases": [
+        "展开",
+        "expand"
+      ],
+      "nodeId": "12535:13693",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "expand",
+      "visualElements": [
+        "expand mark"
+      ],
+      "shapeSummary": "mature team icon for 展开; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "展开",
+        "展开更多"
+      ],
+      "avoidWhen": [
+        "全屏"
+      ]
+    },
+    {
+      "name": "BjhBasicShouqi1",
+      "label": "收起",
+      "aliases": [
+        "收起",
+        "collapse"
+      ],
+      "nodeId": "12535:13697",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "collapse",
+      "visualElements": [
+        "collapse mark"
+      ],
+      "shapeSummary": "mature team icon for 收起; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "收起",
+        "折叠"
+      ],
+      "avoidWhen": [
+        "导航收起 if sidebar context"
+      ]
+    },
+    {
+      "name": "BjhBasicYingliang",
+      "label": "音量",
+      "aliases": [
+        "声音",
+        "音频",
+        "volume"
+      ],
+      "nodeId": "12535:13719",
+      "family": "media",
+      "matchType": "exact",
+      "semanticDirection": "volume/audio",
+      "visualElements": [
+        "speaker",
+        "sound waves"
+      ],
+      "shapeSummary": "mature team icon for 音量; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "音量",
+        "声音",
+        "音频控制"
+      ],
+      "avoidWhen": [
+        "通知"
+      ]
+    },
+    {
+      "name": "BjhBasicJingyin",
+      "label": "静音",
+      "aliases": [
+        "关闭声音",
+        "mute"
+      ],
+      "nodeId": "12535:13736",
+      "family": "media",
+      "matchType": "exact",
+      "semanticDirection": "mute/audio off",
+      "visualElements": [
+        "speaker",
+        "slash/off mark"
+      ],
+      "shapeSummary": "mature team icon for 静音; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "静音",
+        "关闭声音"
+      ],
+      "avoidWhen": [
+        "关闭弹窗"
+      ]
+    },
+    {
+      "name": "BjhBasicJigou",
+      "label": "机构",
+      "aliases": [
+        "机构账号",
+        "组织",
+        "organization"
+      ],
+      "nodeId": "12535:13785",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "organization/institution",
+      "visualElements": [
+        "building/org mark"
+      ],
+      "shapeSummary": "mature team icon for 机构; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "机构",
+        "机构账号",
+        "组织"
+      ],
+      "avoidWhen": [
+        "团队",
+        "用户"
+      ]
+    },
+    {
+      "name": "BjhBasicWuweigui",
+      "label": "无违规",
+      "aliases": [
+        "合规",
+        "未违规",
+        "无风险",
+        "compliant"
+      ],
+      "nodeId": "12535:13788",
+      "family": "status",
+      "matchType": "exact",
+      "semanticDirection": "no violation/compliance",
+      "visualElements": [
+        "shield/check or compliant mark"
+      ],
+      "shapeSummary": "mature team icon for 无违规; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "无违规",
+        "合规",
+        "未违规"
+      ],
+      "avoidWhen": [
+        "成功",
+        "安全"
+      ]
+    },
+    {
+      "name": "BjhBasicDengji",
+      "label": "等级",
+      "aliases": [
+        "级别",
+        "等级",
+        "level"
+      ],
+      "nodeId": "12535:13791",
+      "family": "commerce",
+      "matchType": "exact",
+      "semanticDirection": "level/rank",
+      "visualElements": [
+        "rank/level mark"
+      ],
+      "shapeSummary": "mature team icon for 等级; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "等级",
+        "级别",
+        "账号等级"
+      ],
+      "avoidWhen": [
+        "荣誉",
+        "积分"
+      ]
+    },
+    {
+      "name": "BjhBasicJiantoumianxing",
+      "label": "面性箭头",
+      "aliases": [
+        "面性箭头",
+        "实心箭头",
+        "arrow filled"
+      ],
+      "nodeId": "12535:13246",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "filled/solid arrow variant",
+      "visualElements": [
+        "solid arrow mark"
+      ],
+      "shapeSummary": "mature team icon for 面性箭头; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "面性箭头",
+        "特殊箭头"
+      ],
+      "avoidWhen": [
+        "默认线性箭头"
+      ]
+    },
+    {
+      "name": "BjhBasicGuanbiteshu",
+      "label": "特殊关闭",
+      "aliases": [
+        "特殊关闭",
+        "关闭特殊",
+        "close special"
+      ],
+      "nodeId": "12535:13253",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "special close",
+      "visualElements": [
+        "special close mark"
+      ],
+      "shapeSummary": "mature team icon for 特殊关闭; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "特殊关闭"
+      ],
+      "avoidWhen": [
+        "普通关闭; use BjhBasicGuanbi"
+      ]
+    },
+    {
+      "name": "BjhBasicjiesuan",
+      "label": "结算",
+      "aliases": [
+        "结算",
+        "清算",
+        "settlement"
+      ],
+      "nodeId": "12535:13255",
+      "family": "commerce",
+      "matchType": "exact",
+      "semanticDirection": "settlement/payment",
+      "visualElements": [
+        "settlement/card/check mark"
+      ],
+      "shapeSummary": "mature team icon for 结算; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "结算",
+        "电商结算",
+        "收益结算"
+      ],
+      "avoidWhen": [
+        "收益",
+        "资产"
+      ]
+    },
+    {
+      "name": "BjhBasicrenwuredu",
+      "label": "任务热度",
+      "aliases": [
+        "任务热度",
+        "热度",
+        "hot task"
+      ],
+      "nodeId": "12535:13265",
+      "family": "data",
+      "matchType": "exact",
+      "semanticDirection": "task heat/popularity",
+      "visualElements": [
+        "task/hotness mark"
+      ],
+      "shapeSummary": "mature team icon for 任务热度; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "任务热度",
+        "热度",
+        "热门任务"
+      ],
+      "avoidWhen": [
+        "活动",
+        "数据增长"
+      ]
+    },
+    {
+      "name": "BjhBasicDianshangquanyi",
+      "label": "电商权益",
+      "aliases": [
+        "电商权益",
+        "权益",
+        "benefits"
+      ],
+      "nodeId": "12535:13771",
+      "family": "commerce",
+      "matchType": "exact",
+      "semanticDirection": "commerce benefits",
+      "visualElements": [
+        "benefit/ticket/badge mark"
+      ],
+      "shapeSummary": "mature team icon for 电商权益; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "电商权益",
+        "权益"
+      ],
+      "avoidWhen": [
+        "荣誉",
+        "优惠券"
+      ]
+    },
+    {
+      "name": "BjhBasicGengduoxiala",
+      "label": "更多下拉",
+      "aliases": [
+        "更多下拉",
+        "下拉更多",
+        "dropdown more"
+      ],
+      "nodeId": "12535:13553",
+      "family": "navigation",
+      "matchType": "exact",
+      "semanticDirection": "more dropdown",
+      "visualElements": [
+        "more dots",
+        "down arrow"
+      ],
+      "shapeSummary": "mature team icon for 更多下拉; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "更多下拉",
+        "下拉菜单"
+      ],
+      "avoidWhen": [
+        "普通更多"
+      ]
+    },
+    {
+      "name": "BjhBasicDaoruOld",
+      "label": "导入",
+      "aliases": [
+        "导入",
+        "旧导入",
+        "import"
+      ],
+      "nodeId": "12535:13655",
+      "family": "content",
+      "matchType": "exact",
+      "semanticDirection": "import/input",
+      "visualElements": [
+        "inward/import mark"
+      ],
+      "shapeSummary": "mature team icon for 导入; prefer exact reuse when user intent matches",
+      "styleAttributes": {
+        "masterSize": 48,
+        "logicalSize": 24,
+        "ink": "#242529",
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+      },
+      "useWhen": [
+        "导入",
+        "导入文件"
+      ],
+      "avoidWhen": [
+        "上传",
+        "下载",
+        "导出"
+      ]
+    }
+  ],
+  "confusionRules": [
+    {
+      "ifUserSays": [
+        "内容分销",
+        "分销",
+        "内容分发",
+        "分发渠道"
+      ],
+      "prefer": "内容分销",
+      "avoid": [
+        "BjhBasicNeirong",
+        "BjhBasicFenxiang",
+        "BjhBasicDaochu"
+      ],
+      "reason": "内容分销 is a mature library exact icon; do not degrade to generic content, share, or export metaphors in content-list scenes"
+    },
+    {
+      "ifUserSays": [
+        "搜索",
+        "检索",
+        "查询"
+      ],
+      "prefer": "BjhBasicSousuo",
+      "avoid": [
+        "BjhBasicSaixuan",
+        "BjhBasicPaixu"
+      ],
+      "reason": "search uses magnifier; filter and sort are separate table operations"
+    },
+    {
+      "ifUserSays": [
+        "筛选",
+        "过滤"
+      ],
+      "prefer": "BjhBasicSaixuan",
+      "avoid": [
+        "BjhBasicSousuo",
+        "BjhBasicPaixu"
+      ],
+      "reason": "filter narrows results by conditions, not text query or ordering"
+    },
+    {
+      "ifUserSays": [
+        "排序",
+        "升序",
+        "降序"
+      ],
+      "prefer": "BjhBasicPaixu",
+      "avoid": [
+        "BjhBasicSaixuan"
+      ],
+      "reason": "sort changes order, not conditions"
+    },
+    {
+      "ifUserSays": [
+        "成功",
+        "完成",
+        "通过"
+      ],
+      "prefer": "BjhBasicChenggong1",
+      "avoid": [
+        "BjhBasicWancheng"
+      ],
+      "reason": "pure status result uses colored success; completion check is a generic action mark"
+    },
+    {
+      "ifUserSays": [
+        "发布成功"
+      ],
+      "prefer": "BjhBasicChenggong1",
+      "variantIfContextSpecific": "document/card + check",
+      "reason": "pure toast/status can reuse success; content-specific state may combine content with check"
+    },
+    {
+      "ifUserSays": [
+        "导出"
+      ],
+      "prefer": "BjhBasicDaochu",
+      "avoid": [
+        "BjhBasicFenxiang",
+        "BjhBasicXiazai"
+      ],
+      "reason": "export is a business data/file output action, not social share or local download"
+    },
+    {
+      "ifUserSays": [
+        "下载"
+      ],
+      "prefer": "BjhBasicXiazai",
+      "avoid": [
+        "BjhBasicDaochu"
+      ],
+      "reason": "download emphasizes local receiving direction"
+    },
+    {
+      "ifUserSays": [
+        "发送",
+        "提交"
+      ],
+      "prefer": "发送",
+      "avoid": [
+        "BjhBasicFenxiang",
+        "BjhBasicDaochu"
+      ],
+      "reason": "send is outward message/content dispatch, not social share or export"
+    },
+    {
+      "ifUserSays": [
+        "AI改写",
+        "智能改写"
+      ],
+      "prefer": "BjhBasicBianji",
+      "variantIfContextSpecific": "document/card + pen + one tiny AI spark",
+      "reason": "rewrite must read as writing/editing first; AI mark is secondary"
+    },
+    {
+      "ifUserSays": [
+        "智能诊断",
+        "AI诊断"
+      ],
+      "prefer": "智能诊断",
+      "avoid": [
+        "random spark cluster",
+        "generic search"
+      ],
+      "reason": "diagnosis uses magnifier plus diagnostic signal, not only search or decorative AI"
+    },
+    {
+      "ifUserSays": [
+        "阅读量",
+        "浏览量"
+      ],
+      "prefer": "BjhBasicYanjing",
+      "variantIfContextSpecific": "eye + small chart/card",
+      "reason": "view/reading count should anchor on eye, not generic data unless analytics view is primary"
+    },
+    {
+      "ifUserSays": [
+        "粉丝",
+        "新增粉丝"
+      ],
+      "prefer": "BjhBasicGuanzhu",
+      "variantIfContextSpecific": "follow/person + plus",
+      "avoid": [
+        "BjhBasicYonghu"
+      ],
+      "reason": "fans/follow is a relationship concept; single user is account/profile"
+    },
+    {
+      "ifUserSays": [
+        "直播回看",
+        "直播回放",
+        "回放"
+      ],
+      "prefer": "直播回看",
+      "avoid": [
+        "BjhBasicBofang",
+        "BjhBasicShijian"
+      ],
+      "reason": "live replay is a mature business icon; do not reduce to generic play or clock"
+    },
+    {
+      "ifUserSays": [
+        "加粗",
+        "倾斜",
+        "下划线"
+      ],
+      "prefer": "corresponding text-formatting icon",
+      "avoid": [
+        "BjhBasicBianji"
+      ],
+      "reason": "text formatting actions have mature editor icons; do not collapse them into generic edit"
+    },
+    {
+      "ifUserSays": [
+        "橱窗",
+        "购物袋",
+        "电商权益",
+        "结算"
+      ],
+      "prefer": "corresponding ecommerce mature icon",
+      "avoid": [
+        "BjhBasicDianshangshouyi",
+        "BjhBasicCard"
+      ],
+      "reason": "ecommerce concepts are distinct; choose exact mature icon before generic revenue/card"
+    },
+    {
+      "ifUserSays": [
+        "导航收起",
+        "导航展开"
+      ],
+      "prefer": "corresponding navigation mature icon",
+      "avoid": [
+        "BjhBasicShouqi1",
+        "BjhBasicZhankai1"
+      ],
+      "reason": "sidebar navigation expand/collapse differs from generic expand/collapse"
+    },
+    {
+      "ifUserSays": [
+        "无违规",
+        "合规",
+        "未违规"
+      ],
+      "prefer": "BjhBasicWuweigui",
+      "avoid": [
+        "BjhBasicChenggong1",
+        "BjhBasicJingshi1"
+      ],
+      "reason": "compliance/no-violation is not the same as generic success or warning"
+    }
+  ]
+}
