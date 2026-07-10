@@ -55,6 +55,7 @@ Do not introduce gradients, shadows, blur, random opacity, duotone, or decorativ
 - Hard max: 5 paths unless the user explicitly approves a non-production draft.
 - Keep secondary badges simple: check, dot, spark, plus, minus, arrow.
 - Keep 2px visible gaps around badges and top-right marks.
+- Do not let independent semantic parts sit edge-to-edge. If a badge/arrow/spark/plus is separate from the main object, it needs a visible 2px gap minimum; prefer 4px in rough semantic thumbnails.
 - For success/status icons, keep the check mark visually detached from the main object unless the product convention explicitly uses an embedded check. If it sticks to a document/card/tray corner, shrink or shift the main object rather than letting the strokes merge.
 - For AI assistant icons, use at most one AI marker. If the main object/action is already clear, keep the spark tiny and detached, or remove it when density reaches 5 paths.
 - Do not stack AI spark, document, status, and arrow all in one 24px icon unless one element is removed.

@@ -170,19 +170,24 @@ Load `references/team-icon-index.json` before any runtime Figma library lookup.
 Before generating from scratch, run the automated source decision pipeline:
 
 ```
-1. Team mature library exact/adjacent match
-2. External approved source libraries
-3. AI generation fallback
+1. Team mature library exact match only
+2. External approved source-library retrieval
+3. Baijiahao standardization from external source
+4. Team mature-library adjacent adaptation fallback
+5. AI generation fallback
 ```
 
 The source route changes how the icon is made:
 
 - **reuse route**: inspect existing team icon, preserve accepted metaphor, adapt only if needed
-- **adapt route**: use source icon as semantic reference, redraw into Baijiahao rules
+- **source-adapt route**: use a real external/team source icon as semantic reference, then redraw into Baijiahao rules
+- **team-adapt route**: use adjacent mature-library knowledge only after external retrieval is unavailable, weak, unsuitable, or rejected
 - **generate route**: create new semantic options and preview from scratch
 
 Never copy external geometry. Source libraries provide meaning and composition patterns, not final coordinates.
 Do not make routine skill execution depend on reading the Figma mature library. Figma lookup is a maintenance/verifying path; the offline team index is the default semantic matching layer.
+Do not jump from an adjacent team-library match directly into standardized adaptation. Adjacent matches help constrain meaning, but real external-source retrieval should happen first because direct AI/semantic adaptation is weaker than using a high-quality source metaphor.
+For any non-exact mature-library case, external sources have higher priority than mature-library AI/controlled repaint. Adjacent mature-library matches are guardrails and fallback, not the primary shape source.
 
 Select a runtime mode before preview:
 
@@ -204,12 +209,47 @@ If `team-icon-index.json` returns an exact mature-library match, do not treat it
 
 ---
 
-## Phase 3 — Semantic Plan
+## Phase 3 — Semantic Direction Plan
 
 Load `references/baijiahao-metaphor-table.md`.
 Use `references/team-icon-index.json` to find exact, alias, or adjacent team-library matches before inventing semantic options.
+Phase 3 is for choosing **meaning direction**, not for final visual solution generation.
+Do not run full external-source adaptation or produce final-style visual schemes before the user selects a semantic direction.
+Use mature-library and external-source signals only as evidence for whether a semantic direction is plausible.
+Do not let AI-drawn glyphs appear to outrank source libraries. If a Phase 3 sketch is not backed by an exact mature-library source or a retrieved external source, treat it as a text-only semantic card rather than an icon-like visual.
 
-Translate the brief into 2–3 visual semantic options. For source-first requests, include the best source candidates if available.
+Translate the brief into 2–3 semantic directions. Each direction should represent a genuinely different interpretation of the user's intent.
+For `智能扩写`, valid semantic directions might be:
+
+1. `文本扩展` — emphasize existing text becoming longer/more complete.
+2. `内容补全` — emphasize an article/document being supplemented.
+3. `写作辅助` — emphasize the AI/editor as the actor helping write.
+
+These are not final icon schemes yet. They are choices about what the icon should mean.
+
+Each semantic direction may include a simple low-fidelity direction thumbnail so the user can understand the rough metaphor, but the thumbnail must not be treated as the final SVG preview or final generated icon.
+Default to text-first semantic direction cards. Add thumbnails only when they are source-backed or can be drawn as a safe, non-icon diagram without looking like a final solution.
+
+Thumbnail preview rules:
+
+- Keep each thumbnail as a small 24×24 SVG sketch using Baijiahao defaults.
+- Render thumbnails on a high-contrast light preview tile even if the chat/app uses dark mode; the user must be able to judge the glyph clearly.
+- Render or attach the thumbnail visually. Do not paste raw SVG source code into the user-facing message.
+- If the current surface cannot render inline SVG, write each thumbnail to a temporary `.svg` file and reference it as an image/file link; keep the source code out of the chat body.
+- Treat thumbnails as meaning sketches, not approved production previews.
+- Do not generate new icon-like AI thumbnails in Phase 3 merely to make the directions look visual. If no source-backed thumbnail is available, omit the thumbnail.
+- Show only broad metaphor families. Avoid detailed construction, source-specific geometry, or final stroke composition.
+- Phase 3 meaning sketches must be non-overlapping diagrams. Do not let arrows, plus marks, pens, sparks, document corners, or text lines touch, cross, cover, or stack on each other.
+- Use separated zones for compound meaning sketches: main object in one zone, secondary mark in another zone, with at least 2px visible gap; prefer 4px when space allows.
+- Do not place two parts edge-to-edge. If the relationship reads as “stuck together” rather than intentionally nested or clearly separated, revise or omit the sketch.
+- If a meaning cannot be sketched without overlap at 24px, do not draw a thumbnail; use a short text-only description and defer visual exploration to Phase 4A.
+- Do not include dense details that would not survive at 24px.
+- Apply the same local quality screen before showing thumbnails: no accidental overlaps, glued attachments, swallowed endpoints, local dark knots, or missing breathing room.
+- If a thumbnail cannot be made readable, revise or remove that semantic option before presenting it.
+- Do not show medium/high-risk options as normal choices. Either revise them until risk is low, move them into a clearly rejected note, or omit them.
+- Do not present abstract corner marks, opposing L-corners, disconnected brackets, or geometry that requires the text label to explain the meaning.
+- Label each thumbnail clearly as `语义方向草图` so users know detailed source retrieval and visual方案 generation happen only after they choose a direction.
+- If forced to describe the thumbnail textually because image rendering is unavailable, say `缩略图暂不可渲染` and provide a one-line visual description; do not dump SVG markup.
 
 Exception: if Phase 2 found a source-locked exact mature-library match, present one recommended reuse direction first, and add a clearly separated optional exploration entry. Do not invent 2–3 competing directions by default for the same canonical mature icon.
 
@@ -217,6 +257,7 @@ Use this pattern for exact mature-library hits:
 
 ```
 方案 A — 复用成熟库标准版：{icon label}
+  标准版预览：[rendered thumbnail image or attached SVG file]
   视觉元素：成熟库原始轮廓 / 关键内部符号 / 方向与视觉重量
   表达含义：...
   来源依据：团队成熟库精确命中，node {nodeId}
@@ -225,6 +266,7 @@ Use this pattern for exact mature-library hits:
 可选探索 — 非标准变体
   如果你想探索不同业务场景或更强表达，我可以再给 2–3 个非标准方向。
   这些方向会标记为“变体/探索”，不会覆盖成熟库标准版。
+  展开变体时先给语义方向，不直接绘制 AI 变体图；用户选定方向后再检索外部来源并生成具体方案。
 
 追问：“默认建议走方案 A。你要直接预览成熟库标准版，还是需要我展开非标准变体？”
 ```
@@ -234,35 +276,99 @@ Each option must include:
 - semantic strategy: object / action / state / data / AI / content / permission / operation
 - key visual elements
 - why it fits the Baijiahao scene
-- source basis: offline team index / runtime team library / external reference / generated
-- 24px readability risk
+- source basis: exact team reuse / adjacent team guardrail / possible external source families / generated fallback
+- 24px readability risk. Only `低` risk can be presented as a selectable direction.
 
 Required pattern:
 
 ```
-方案 A — {语义方向}
+语义方向 A — {方向名称}
+  语义方向草图：![方向A草图]({thumbnail-svg-or-png-path})
+  该方向表达：...
+  可能视觉元素：...
+  适用场景：...
+  来源依据：成熟库相近族 / 可能外部来源族 / 业务语义
+  风险判断：...
+
+语义方向 B — {方向名称}
+  语义方向草图：![方向B草图]({thumbnail-svg-or-png-path})
+  ...
+
+追问：“你想先走哪个语义方向？选定后我再检索/筛选来源，并生成这个方向下的具体 icon 方案。”
+```
+
+Do not proceed to source-specific visual schemes until the semantic direction is confirmed or clearly implied. If the user comments on a thumbnail's shape, revise the Phase 3 meaning sketch first instead of jumping to final spec.
+
+---
+
+## Phase 4A — Source Retrieval and Visual Scheme Generation
+
+After the user selects a Phase 3 semantic direction, generate concrete visual schemes **inside that selected meaning only**.
+
+Sequence:
+
+```
+selected semantic direction
+→ run mature-library exact/adjacent check for this direction
+→ run external-source retrieval unless exact mature-library reuse already solves the request
+→ source intake check for shape/semantic fit
+→ if source passes, generate 1–3 low-risk external-source-adapted visual schemes
+→ if no source passes, then use adjacent mature-library controlled adaptation
+→ if both fail, use AI fallback
+→ ask which scheme enters formal SVG preview
+```
+
+Rules:
+
+- Do not introduce new semantic directions in Phase 4A unless the selected direction proves invalid.
+- Do not output three unrelated directions after the user has already chosen one direction.
+- Source retrieval results are inputs to scheme generation, not semantic direction options.
+- Before any concrete visual scheme, state the external-source result: adopted / rejected with reason / unavailable / unnecessary because exact mature reuse.
+- Do not use mature-library adjacent repaint as the first concrete visual scheme when external source retrieval has not passed or failed yet.
+- Do not generate AI visual schemes until external retrieval has been attempted and all retrieved candidates are unavailable, semantically weak, visually unsuitable, or rejected by the user.
+- If no external source passes intake, say so and use mature-library constraints or AI fallback inside the selected direction.
+- Only low-risk visual schemes can be selectable.
+- Prefer one strong scheme over three weak schemes.
+
+Required pattern:
+
+```
+已选择语义方向：{方向名称}
+来源筛选：
+- 成熟库：...
+- 外部来源：...
+- 推荐主来源：外部来源 / 成熟库精确复用 / 成熟库相近兜底 / AI兜底
+- 淘汰来源：...（只列关键原因）
+- AI 生成：不需要 / 外部来源不适合后的兜底
+
+方案 1 — {具体视觉方案名}
+  方案预览：![方案1预览]({thumbnail-svg-or-png-path})
   视觉元素：...
   表达含义：...
   来源依据：...
   风险判断：...
 
-方案 B — {语义方向}
+方案 2 — {具体视觉方案名}
+  方案预览：![方案2预览]({thumbnail-svg-or-png-path})
   ...
 
-追问：“你想先预览哪个方向？或者需要我调整哪一点？”
+追问：“你想让哪个具体方案进入正式 SVG 预览？”
 ```
 
-Do not proceed to preview until the direction is confirmed or clearly implied.
+Do not proceed to formal SVG preview until the visual scheme is confirmed or clearly implied.
 
 ---
 
-## Phase 4 — SVG Preview
+## Phase 4B — SVG Preview
 
-Generate a visual SVG preview so the designer can judge shape, meaning, density, and Baijiahao style fit.
+Generate a formal visual SVG preview for the confirmed visual scheme so the designer can judge shape, meaning, density, and Baijiahao style fit.
 
 Rules:
 
 - Use SVG only as a preview artifact.
+- Show the SVG preview visually whenever possible. If inline rendering is unavailable, save the SVG as a file and link/embed it; do not dump long SVG source into the main response unless the user explicitly asks for code.
+- Build the formal preview from the selected Phase 4A visual scheme, but refine proportions, spacing, and source fidelity before showing it.
+- Do not simply reuse a rough thumbnail as the formal preview if it has not passed quality gates.
 - Use Baijiahao defaults from `baijiahao-icon-style.md`.
 - Keep details open and readable at 24px.
 - Avoid dense internal strokes, broken curves, accidental blobs, and unclear AI/spark decorations.
@@ -277,7 +383,7 @@ Before Phase 5, state:
 ```
 预览状态：已确认
 确认方向：...
-来源路线：团队成熟库复用 | 来源适配 | AI 生成
+来源路线：团队成熟库精确复用 | 外部来源检索后规范化 | 相近成熟库兜底改造 | AI 生成兜底
 是否使用局部填充：是/否 + 原因
 已解决的质量风险：...
 ```
@@ -365,8 +471,8 @@ Screenshot correct + preview match? ──Yes──▶ final handoff
                                   └─No──▶ branch by failure
 
 wrong meaning                    → return to Phase 3
-source/adaptation mismatch        → return to Phase 2 or 4
-preview itself is poor            → return to Phase 4
+source/adaptation mismatch        → return to Phase 2 or Phase 4A
+preview itself is poor            → return to Phase 4B
 spec changed proportions          → return to Phase 5A
 native draw mismatch              → return to Phase 5B
 spacing/centering issue           → adjust spec and redraw

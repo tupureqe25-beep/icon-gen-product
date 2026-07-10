@@ -25,7 +25,7 @@ The offline index is the first stable semantic-matching layer. It lets the skill
 
 | Concept | Context clue | Preferred metaphor | Avoid |
 |---|---|---|---|
-| AI改写 | AI assistant / editor | document + pen/spark | magic wand alone if writing is not clear |
+| AI改写 / 智能扩写 | AI assistant / editor | document/text lines or pen/edit stroke + tiny detached AI spark | magic wand alone; dominant arrow; folded corner + spark collision; text lines + arrow + spark all at once |
 | AI生成 | creation / assistant | spark + document/card | abstract spark cluster |
 | AI优化 | quality improvement | sliders/check + spark | gear if it reads as settings |
 | 发布 | content operation | paper plane / upload arrow / document arrow | megaphone unless broadcast |
@@ -75,7 +75,7 @@ Use `team-icon-index.json` before inventing a new metaphor.
 | 成功 / 发布成功 | `BjhBasicChenggong1` | Pure status reuses green success; content-specific success may use document + check. |
 | 失败 / 审核失败 | `BjhBasicShibai1` | Pure failure reuses red failure; content-specific failure may use document + warning/minus. |
 | 警示 / 风险 / 违规 | `BjhBasicJingshi1` | Pure warning reuses amber warning; moderation-specific variants may use shield/document + warning. |
-| AI改写 / 智能改写 | `BjhBasicBianji` + content family | Writing/editing must be primary; AI spark is secondary and tiny. |
+| AI改写 / 智能改写 / 智能扩写 | `BjhBasicBianji` + content family | Writing/editing/content expansion must be primary; AI spark is optional, secondary, tiny, and detached by 2px. Prefer one expansion cue only. |
 | 智能诊断 / AI诊断 | `智能诊断` | Use magnifier + diagnostic signal; do not use random spark clusters. |
 | 导出 | `BjhBasicDaochu` | Distinguish from share and download. |
 | 下载 | `BjhBasicXiazai` | Downward receiving action; distinguish from export. |

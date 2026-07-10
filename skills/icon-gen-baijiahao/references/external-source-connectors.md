@@ -71,9 +71,48 @@ For every external result:
 
 - inspect name, title, tags, category, library, license, and SVG/source snippet if available
 - decide whether the metaphor fits the Baijiahao scene
+- run a source intake check before adapting the result; do not standardize a candidate whose shape/meaning is already weak
 - reject candidates that are too decorative, too dense, filled/logo-like, or semantically ambiguous
 - never copy path data, exact coordinates, gradients, or library-specific style into final output
 - convert only the semantic silhouette into Baijiahao `24×24` logical / `48×48` master rules
+
+## Source Intake Check
+
+Before a retrieved external icon can become a Phase 3 option, score it against shape and semantic fit.
+
+Accept only candidates that pass all required checks:
+
+```txt
+semantic fit:       exact / strong adjacent only
+shape readability:  recognizable without the option title
+standardization:    can become 2–4 paths, 5 max
+overlap risk:       no forced stacking, occlusion, or glued details
+metaphor clarity:   no crop/resize/open/jump meaning for writing concepts
+source evidence:    concrete retrieved library/name/tags/source snippet
+```
+
+Reject before standardization when:
+
+- the result only matches a keyword but not the intended action
+- the source name suggests a different action, e.g. `arrow-right`, `maximize`, `corner`, `crop`, `external-link`, or `move`
+- the icon relies on overlap/occlusion to express itself
+- the icon needs an arrow, plus, spark, and text lines all at once to become understandable
+- the icon would require inventing most of the final shape after retrieval
+- the retrieved metadata/source cannot be inspected
+
+For writing, rewriting, and expansion concepts, prefer source names and tags related to:
+
+```txt
+file-text, text, text-plus, text-increase, file-pen, edit, writing, pencil-line
+```
+
+Reject or heavily down-rank:
+
+```txt
+arrow-right, expand, maximize, crop, external-link, corners, move, wand
+```
+
+If fewer than one source candidate passes intake, report `外部来源：已检索但不适合` and use team-adapt or AI fallback instead of forcing a poor source-adapt result.
 
 ## User-Facing Report
 
@@ -119,6 +158,7 @@ Stop or fall back to AI generation when:
 - external search returns only weak matches
 - candidates conflict with Baijiahao mature-library semantics
 - candidates are visually too complex for 24px
+- no retrieved candidate passes the source intake check
 - script cannot fetch packages and no cached package is available
 - user expects Iconfont global search but no project source is provided
 

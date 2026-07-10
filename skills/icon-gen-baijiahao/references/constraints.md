@@ -29,6 +29,9 @@ CONSTRAINT CHECK
   [ ] C12  top-right marks keep visible 2px gap
   [ ] C13  production profile matches Baijiahao official PDF / mature library
   [ ] C14  intentional overlap and endpoint hygiene
+  [ ] C15  selectable options are low-risk and self-explanatory
+  [ ] C16  external-source intake passed before standardization
+  [ ] C17  Phase 3 meaning sketches have zero overlap
 ```
 
 ---
@@ -200,6 +203,8 @@ Large / sparse:    8px or more for intentionally open compositions
 - Compound shapes must maintain consistent spacing throughout each zone.
   (e.g. trash icon: lid gap and body gap may differ, but left = right within each zone.)
 - Odd-number gaps (1px, 3px, 5px) are not permitted.
+- Adjacent independent parts must not sit edge-to-edge. If they are separate semantic parts, keep at least 2px visible gap; prefer 4px for Phase 3 sketches and secondary marks when space allows.
+- A small secondary part beside a main object must read as either clearly detached, clearly nested, or intentionally connected through a clean shared joint. “Almost touching” and “stuck beside it” are not allowed.
 
 ---
 
@@ -343,7 +348,82 @@ Rules:
 - Do not use overlap to hide awkward endpoints.
 - Do not let a secondary AI/spark/status mark deform the silhouette of the main object.
 - Do not combine two object metaphors at equal visual weight if they compete for the same 24px live area.
+- Do not place a spark/badge on a folded document corner, arrowhead, or pen tip unless it has a verified mature-library precedent.
+- Do not combine more than one action cue in a writing/editing icon, e.g. pen + right arrow + spark.
+- For AI writing/rewriting/expansion icons, remove the AI spark before accepting any glued, crowded, or dark top-right construction.
 - When in doubt, detach the secondary mark or remove it before adding more detail.
 
 Any C14 failure is a hard blocker before drawing. Revise the spec or return to
 the preview phase; do not patch random nodes after Figma output.
+
+---
+
+## C15 — Selectable Option Quality
+
+Do not present a direction as selectable unless it is visually understandable at
+24px and has a low risk assessment.
+
+Hard fail:
+
+- risk is marked `中` or `高`
+- the icon needs the text label to explain the metaphor
+- abstract brackets/corners are the primary metaphor for a writing/content action
+- the preview looks like crop, resize, open-in-new, jump, or input-area expansion when the requested concept is writing/rewriting/expansion
+- the source route is unclear or only keyword-based, with no concrete source candidate or team guardrail
+
+On fail:
+
+1. Revise the option using a safer metaphor.
+2. If it still fails, omit it from selectable options.
+3. Optionally mention it briefly under `已淘汰方向` with the reason.
+
+---
+
+## C16 — External Source Intake
+
+External source candidates must pass shape/semantic intake before any
+Baijiahao standardization or thumbnail generation.
+
+Hard fail:
+
+- source was chosen by keyword only, without inspecting name/tags/source shape
+- source action differs from the requested action
+- source requires overlap/stacking/occlusion to be adapted
+- source would become a different metaphor after standardization
+- writing/expansion request uses arrow/crop/resize/open/jump source as primary metaphor
+- final option mixes two or more external source metaphors
+
+On fail:
+
+1. Reject the candidate before drawing.
+2. Try another retrieved candidate.
+3. If none pass, say external retrieval was unsuitable and use team-adapt or AI fallback.
+
+---
+
+## C17 — Phase 3 Meaning Sketch Separation
+
+Phase 3 semantic-direction thumbnails are not final icon compositions. They are
+low-fidelity meaning sketches and must be stricter than final icons about
+overlap.
+
+Hard fail in Phase 3:
+
+- any arrow touches, crosses, or sits on top of a text line
+- a plus/spark/badge touches a document, text line, pen, or arrow
+- a document corner touches a secondary mark
+- a pen crosses or covers text lines
+- two semantic objects share the same local 4–6px area
+- a secondary mark appears pasted to the main object
+- a secondary mark sits edge-to-edge beside the main object with no clear gap
+- the gap between independent semantic parts is under 2px, or visually reads under 2px after stroke width is considered
+
+Allowed in Phase 3:
+
+- separated text lines + detached plus/spark with at least 2px gap, preferably 4px
+- document/card + detached mark with at least 2px gap, preferably 4px
+- pen/edit mark + separate text-line hint with at least 2px gap, preferably 4px
+
+If a direction cannot be sketched without overlap, omit the thumbnail and
+describe the semantic direction in text. Do not present an overlapped sketch as
+`风险低`.

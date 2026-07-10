@@ -177,12 +177,20 @@ Failing signs:
 
 - two strokes touch but their endpoints do not align
 - a round cap disappears into another stroke
+- in Phase 3 meaning sketches, any two semantic elements touch or overlap at all
 - an arrowhead, pen tip, spark, plus, or badge sticks to the main form without a clear design reason
+- a spark or badge sits on the same corner as a document fold, creating a dark knot
+- a folded corner, arrowhead, and spark compete in the same 4–6px area
 - two object metaphors sit edge-to-edge with no breathing room, making the result feel pasted together
+- two independent parts technically do not overlap but visually stick together because the gap is under 2px or unclear
 - an attachment has no clear relationship: not inside, not detached, not sharing a clean joint
 - local details merge into a dark knot or filled blob
 - an overlap destroys the intended negative space
 - the viewer cannot tell whether two elements are supposed to be connected or separated
+- a right arrow dominates a writing icon and changes the meaning to jump/next/open
+- text lines disappear behind a pen/body shape and look accidentally occluded
+- opposing corner/bracket marks read as crop, resize, or input-area expansion rather than text expansion
+- the icon only makes sense after reading the option title or explanation
 
 Allowed overlaps:
 
@@ -195,6 +203,7 @@ Fix order:
 
 1. Decide whether the elements should be connected or separated.
 2. If separated, create at least a 2px visible gap.
+   Prefer 4px for Phase 3 meaning sketches and for secondary marks when space allows.
 3. If attached, clarify the hierarchy by nesting, using a clean shared edge, or shrinking the secondary element.
 4. If connected, align the joint and remove duplicate caps.
 5. Remove the secondary mark if it makes the main metaphor noisy.

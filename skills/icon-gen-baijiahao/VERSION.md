@@ -1,12 +1,4 @@
-# icon-gen-baijiahao
+# icon-gen-baijiahao version 2026-07-10-124309
 
-- Version: 2026-07-09-134247
-- Zip: releases/icon-gen-baijiahao/2026-07-09-134247/icon-gen-baijiahao-2026-07-09-134247.zip
-- Manifest: releases/icon-gen-baijiahao/2026-07-09-134247/release-manifest.json
-- Updated: 2026-07-09
-
-## Update notes
-
-- Added local overlap / endpoint hygiene quality gate.
-- Added hard checks for accidental glued elements, swallowed terminals, dark knots, and awkward side-by-side attachments.
-- Strengthened preview-stage rejection before Icon Spec JSON.
+- Updated: 2026-07-10-124309
+- Commit focus: external-source priority before adjacent mature-library repaint; Phase 3 semantic directions before Phase 4A visual schemes; stricter spacing and non-overlap quality gates.
