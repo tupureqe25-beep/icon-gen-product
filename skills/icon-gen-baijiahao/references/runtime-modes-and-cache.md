@@ -70,14 +70,23 @@ Use cache layers in this order:
 L1 — team-icon-index.json
      semantic matching, aliases, source lock, high-level visual summary
 
-L2 — distilled shape spec
-     reusable geometry proportions for high-frequency mature icons
+L2 — team-icon-shape-specs.json  # guardrail-only; not final geometry
+     guardrail-only shape notes for preserve/avoid constraints
 
-L3 — runtime source verification
-     Figma node or source screenshot for exact visual fidelity
+L3 — runtime source extraction
+     Figma node or source screenshot for exact visual fidelity; required for standard mature-library preview
 ```
 
-`team-icon-index.json` is required for normal execution. Distilled shape specs are optional but strongly recommended for frequently used exact hits such as 搜索、内容分销、成功、失败、警示、智能诊断.
+`team-icon-index.json` is required for normal execution. `team-icon-shape-specs.json  # guardrail-only; not final geometry` is guardrail-only and must not be used as the fast path for exact mature-library reuse.
+
+When L1 exact hit:
+
+```txt
+use strict mode for standard preview/final fidelity
+read/extract Figma node or source screenshot before claiming source match
+use L2 notes only as guardrails
+otherwise ask whether to continue with a temporary schematic preview
+```
 
 ## Distilled Shape Spec Rule
 
@@ -93,17 +102,20 @@ Add a distilled shape spec only after the mature icon has been inspected from an
 
 Do not store full path data or copyrighted external vectors as the generation source of truth. For team-owned mature icons, store enough structural information to recreate the icon faithfully as editable native nodes.
 
+Embedded `production-grade` mature-library shape specs are disabled. Runtime must extract or inspect the current Figma source node before claiming `复用成熟库标准版`.
+
+If source extraction is unavailable, mark the entry `needs-source-verification` and stop or show only a clearly labeled temporary schematic. Fast mode must never claim `复用成熟库标准版` from text memory or local shape notes.
+
 ## When Fast Mode Is Safe
 
 Fast mode is safe when:
 
 - the user is exploring directions
 - no exact mature-library source is expected
-- an exact mature hit has a reliable distilled shape spec
-- the output is a first preview, not final Figma handoff
-- small deviations from mature-source proportions are acceptable
+- the output is a temporary semantic sketch, not a mature-library standard preview
+- small deviations are acceptable because the result is clearly labeled non-final
 
-Fast mode is not allowed to claim pixel/source fidelity unless the source has been verified or the distilled shape spec is marked production-grade.
+Fast mode is not allowed to claim mature-library standard fidelity. Exact mature-library reuse requires runtime Figma source extraction.
 
 ## When Strict Mode Is Required
 
@@ -112,7 +124,8 @@ Strict mode is required when:
 - the user asks to reuse a mature-library icon exactly
 - the request is final production or Figma writeback
 - a manager/mentor review depends on visual fidelity
-- `needsSourceVerificationForPixelMatch=true` and no production-grade distilled spec exists
+- any exact mature-library standard preview or final mature-library reuse
+- source-locked icons even if guardrail notes exist
 - previous output mismatched the mature icon
 - the icon is source-locked and visually distinctive, e.g. 内容分销
 
@@ -160,6 +173,7 @@ For each newly distilled icon, update:
 
 ```txt
 team-icon-index.json
+team-icon-shape-specs.json  # guardrail-only; not final geometry
 team-index-maintenance.md if extraction rules changed
 canonical-spec-registry.md if the icon has a reusable production spec
 ```

@@ -1,0 +1,622 @@
+{
+  "meta": {
+    "name": "baijiahao-team-icon-shape-specs",
+    "version": "2026-07-10-v1",
+    "status": "disabled-as-final-source-use-figma-runtime-extraction",
+    "source": {
+      "library": "百家号PC Component / icon / 基础元素",
+      "fileKey": "jRtQ7X2U4sNUukyxcJGyoX",
+      "frameId": "12535:12665"
+    },
+    "purpose": "Guardrail-only shape notes. Exact mature-library reuse must extract/inspect Figma source node at runtime; do not use this file for standard preview or final drawing.",
+    "rules": [
+      "Use team-icon-index.json for semantic matching only.",
+      "Do not use this file to render mature-library standard previews.",
+      "Do not use this file to draw final mature-library icons.",
+      "For exact mature-library hits, read/extract the Figma source node or source screenshot first.",
+      "These notes are guardrails for what to preserve/avoid after source extraction."
+    ],
+    "outputProfile": {
+      "logicalSize": 24,
+      "teamMasterSize": 48,
+      "scale": 2,
+      "strokeLogical": 2,
+      "strokeMaster": 4,
+      "ink": "#242529"
+    }
+  },
+  "specs": [
+    {
+      "name": "BjhBasicShangchuan",
+      "label": "上传",
+      "nodeId": "12535:13289",
+      "fidelityLevel": "needs-source-verification",
+      "sourceRoute": "team-reuse",
+      "geometrySignature": {
+        "summary": "Open receiving tray plus filled rounded vertical stem and stroked upward chevron arrowhead, matching the mature Figma instance structure.",
+        "mustKeep": [
+          "filled rounded vertical arrow stem",
+          "stroked V-shaped upward arrowhead",
+          "open receiving tray",
+          "tray bottom and side walls",
+          "arrow and tray as separate mature source parts"
+        ],
+        "forbidden": [
+          "rounded U-shaped outline icon",
+          "single filled polygon arrow",
+          "thin outline-only arrow stem",
+          "cloud upload",
+          "closed box upload",
+          "generic external upload geometry"
+        ]
+      },
+      "sourceInspectedAt": "2026-07-10",
+      "guardrailOnly": true,
+      "disabledAsFinalSource": true,
+      "disabledReason": "User chose to stop embedded shape-spec reuse because previews did not match the mature component library. Runtime must extract Figma source nodes instead.",
+      "guardrailSpecSummary": {
+        "meta": {
+          "name": "BjhBasicShangchuan",
+          "label": "上传",
+          "size": 24,
+          "grid": 24,
+          "platform": "baijiahao",
+          "style": "outline",
+          "source": {
+            "route": "team-reuse",
+            "library": "team-shape-spec",
+            "reference_id": "12535:13289",
+            "adaptation_notes": "Source-locked mature upload; preserve filled rounded stem + stroked chevron arrowhead + open tray from Figma source."
+          }
+        },
+        "geometrySignature": {
+          "summary": "Open receiving tray plus filled rounded vertical stem and stroked upward chevron arrowhead, matching the mature Figma instance structure.",
+          "mustKeep": [
+            "filled rounded vertical arrow stem",
+            "stroked V-shaped upward arrowhead",
+            "open receiving tray",
+            "tray bottom and side walls",
+            "arrow and tray as separate mature source parts"
+          ],
+          "forbidden": [
+            "rounded U-shaped outline icon",
+            "single filled polygon arrow",
+            "thin outline-only arrow stem",
+            "cloud upload",
+            "closed box upload",
+            "generic external upload geometry"
+          ]
+        }
+      }
+    },
+    {
+      "name": "BjhBasicXiazai",
+      "label": "下载",
+      "nodeId": "12535:13199",
+      "fidelityLevel": "needs-source-verification",
+      "sourceRoute": "team-reuse",
+      "geometrySignature": {
+        "summary": "Open receiving tray plus filled rounded vertical stem and stroked downward chevron arrowhead, matching the mature Figma instance structure.",
+        "mustKeep": [
+          "filled rounded vertical arrow stem",
+          "stroked V-shaped downward arrowhead",
+          "open receiving tray",
+          "tray bottom and side walls",
+          "arrow and tray as separate mature source parts"
+        ],
+        "forbidden": [
+          "rounded U-shaped outline icon",
+          "single filled polygon arrow",
+          "thin outline-only arrow stem",
+          "cloud download",
+          "closed box download",
+          "generic external download geometry"
+        ]
+      },
+      "sourceInspectedAt": "2026-07-10",
+      "guardrailOnly": true,
+      "disabledAsFinalSource": true,
+      "disabledReason": "User chose to stop embedded shape-spec reuse because previews did not match the mature component library. Runtime must extract Figma source nodes instead.",
+      "guardrailSpecSummary": {
+        "meta": {
+          "name": "BjhBasicXiazai",
+          "label": "下载",
+          "size": 24,
+          "grid": 24,
+          "platform": "baijiahao",
+          "style": "outline",
+          "source": {
+            "route": "team-reuse",
+            "library": "team-shape-spec",
+            "reference_id": "12535:13199",
+            "adaptation_notes": "Source-locked mature download; preserve filled rounded stem + stroked chevron arrowhead + open tray from Figma source."
+          }
+        },
+        "geometrySignature": {
+          "summary": "Open receiving tray plus filled rounded vertical stem and stroked downward chevron arrowhead, matching the mature Figma instance structure.",
+          "mustKeep": [
+            "filled rounded vertical arrow stem",
+            "stroked V-shaped downward arrowhead",
+            "open receiving tray",
+            "tray bottom and side walls",
+            "arrow and tray as separate mature source parts"
+          ],
+          "forbidden": [
+            "rounded U-shaped outline icon",
+            "single filled polygon arrow",
+            "thin outline-only arrow stem",
+            "cloud download",
+            "closed box download",
+            "generic external download geometry"
+          ]
+        }
+      }
+    },
+    {
+      "name": "BjhBasicSousuo",
+      "label": "搜索",
+      "nodeId": "12535:13154",
+      "fidelityLevel": "needs-source-verification",
+      "sourceRoute": "team-reuse",
+      "geometrySignature": {
+        "summary": "Large circular magnifier lens with a short 45-degree handle.",
+        "mustKeep": [
+          "large circular lens",
+          "short handle attached at lower-right",
+          "45-degree handle angle"
+        ],
+        "forbidden": [
+          "tiny lens",
+          "long diagonal handle",
+          "search plus/filter hybrid"
+        ]
+      },
+      "guardrailOnly": true,
+      "downgradedAt": "2026-07-10",
+      "downgradeReason": "Not yet verified against mature Figma source screenshot/node structure; cannot claim mature standard preview.",
+      "guardrailSpecSummary": {
+        "meta": {
+          "name": "BjhBasicSousuo",
+          "label": "搜索",
+          "size": 24,
+          "grid": 24,
+          "platform": "baijiahao",
+          "style": "outline",
+          "source": {
+            "route": "team-reuse",
+            "library": "team-shape-spec",
+            "reference_id": "12535:13154",
+            "adaptation_notes": "Canonical mature magnifier."
+          }
+        },
+        "geometrySignature": {
+          "summary": "Large circular magnifier lens with a short 45-degree handle.",
+          "mustKeep": [
+            "large circular lens",
+            "short handle attached at lower-right",
+            "45-degree handle angle"
+          ],
+          "forbidden": [
+            "tiny lens",
+            "long diagonal handle",
+            "search plus/filter hybrid"
+          ]
+        },
+        "note": "Previous iconSpec retained only as non-final guardrail summary? No final shapes allowed until source verification."
+      },
+      "disabledAsFinalSource": true,
+      "disabledReason": "User chose to stop embedded shape-spec reuse because previews did not match the mature component library. Runtime must extract Figma source nodes instead."
+    },
+    {
+      "name": "BjhBasicNeirong",
+      "label": "内容",
+      "nodeId": "12535:13161",
+      "fidelityLevel": "needs-source-verification",
+      "sourceRoute": "team-reuse",
+      "geometrySignature": {
+        "summary": "Rounded content card/document with two short text bars.",
+        "mustKeep": [
+          "rounded card/document container",
+          "two internal text bars",
+          "calm content-management density"
+        ],
+        "forbidden": [
+          "folder",
+          "media play card",
+          "three or more dense text lines"
+        ]
+      },
+      "guardrailOnly": true,
+      "downgradedAt": "2026-07-10",
+      "downgradeReason": "Not yet verified against mature Figma source screenshot/node structure; cannot claim mature standard preview.",
+      "guardrailSpecSummary": {
+        "meta": {
+          "name": "BjhBasicNeirong",
+          "label": "内容",
+          "size": 24,
+          "grid": 24,
+          "platform": "baijiahao",
+          "style": "outline",
+          "source": {
+            "route": "team-reuse",
+            "library": "team-shape-spec",
+            "reference_id": "12535:13161",
+            "adaptation_notes": "Canonical content/document baseline."
+          }
+        },
+        "geometrySignature": {
+          "summary": "Rounded content card/document with two short text bars.",
+          "mustKeep": [
+            "rounded card/document container",
+            "two internal text bars",
+            "calm content-management density"
+          ],
+          "forbidden": [
+            "folder",
+            "media play card",
+            "three or more dense text lines"
+          ]
+        },
+        "note": "Previous iconSpec retained only as non-final guardrail summary? No final shapes allowed until source verification."
+      },
+      "disabledAsFinalSource": true,
+      "disabledReason": "User chose to stop embedded shape-spec reuse because previews did not match the mature component library. Runtime must extract Figma source nodes instead."
+    },
+    {
+      "name": "BjhBasicShuju",
+      "label": "数据",
+      "nodeId": "12535:13174",
+      "fidelityLevel": "needs-source-verification",
+      "sourceRoute": "team-reuse",
+      "geometrySignature": {
+        "summary": "Dashboard/chart container with sparse internal metric bars.",
+        "mustKeep": [
+          "dashboard/card frame",
+          "internal chart marks",
+          "data/metric semantic family"
+        ],
+        "forbidden": [
+          "coin/revenue object",
+          "database cylinder",
+          "over-dense analytics chart"
+        ]
+      },
+      "guardrailOnly": true,
+      "downgradedAt": "2026-07-10",
+      "downgradeReason": "Not yet verified against mature Figma source screenshot/node structure; cannot claim mature standard preview.",
+      "guardrailSpecSummary": {
+        "meta": {
+          "name": "BjhBasicShuju",
+          "label": "数据",
+          "size": 24,
+          "grid": 24,
+          "platform": "baijiahao",
+          "style": "outline",
+          "source": {
+            "route": "team-reuse",
+            "library": "team-shape-spec",
+            "reference_id": "12535:13174",
+            "adaptation_notes": "Canonical data/dashboard baseline."
+          }
+        },
+        "geometrySignature": {
+          "summary": "Dashboard/chart container with sparse internal metric bars.",
+          "mustKeep": [
+            "dashboard/card frame",
+            "internal chart marks",
+            "data/metric semantic family"
+          ],
+          "forbidden": [
+            "coin/revenue object",
+            "database cylinder",
+            "over-dense analytics chart"
+          ]
+        },
+        "note": "Previous iconSpec retained only as non-final guardrail summary? No final shapes allowed until source verification."
+      },
+      "disabledAsFinalSource": true,
+      "disabledReason": "User chose to stop embedded shape-spec reuse because previews did not match the mature component library. Runtime must extract Figma source nodes instead."
+    },
+    {
+      "name": "BjhBasicChenggong1",
+      "label": "成功",
+      "nodeId": "12535:13156",
+      "fidelityLevel": "needs-source-verification",
+      "sourceRoute": "team-reuse",
+      "geometrySignature": {
+        "summary": "Canonical green filled status circle with white check mark.",
+        "mustKeep": [
+          "green filled circle",
+          "white check mark",
+          "status-color behavior"
+        ],
+        "forbidden": [
+          "monochrome outline check for pure status",
+          "document plus check unless content-specific success is requested"
+        ]
+      },
+      "guardrailOnly": true,
+      "downgradedAt": "2026-07-10",
+      "downgradeReason": "Not yet verified against mature Figma source screenshot/node structure; cannot claim mature standard preview.",
+      "guardrailSpecSummary": {
+        "meta": {
+          "name": "BjhBasicChenggong1",
+          "label": "成功",
+          "size": 24,
+          "grid": 24,
+          "platform": "baijiahao",
+          "style": "filled-status",
+          "source": {
+            "route": "team-reuse",
+            "library": "team-shape-spec",
+            "reference_id": "12535:13156",
+            "adaptation_notes": "Canonical colored success status."
+          }
+        },
+        "geometrySignature": {
+          "summary": "Canonical green filled status circle with white check mark.",
+          "mustKeep": [
+            "green filled circle",
+            "white check mark",
+            "status-color behavior"
+          ],
+          "forbidden": [
+            "monochrome outline check for pure status",
+            "document plus check unless content-specific success is requested"
+          ]
+        },
+        "note": "Previous iconSpec retained only as non-final guardrail summary? No final shapes allowed until source verification."
+      },
+      "disabledAsFinalSource": true,
+      "disabledReason": "User chose to stop embedded shape-spec reuse because previews did not match the mature component library. Runtime must extract Figma source nodes instead."
+    },
+    {
+      "name": "BjhBasicShibai1",
+      "label": "失败",
+      "nodeId": "12535:13157",
+      "fidelityLevel": "needs-source-verification",
+      "sourceRoute": "team-reuse",
+      "geometrySignature": {
+        "summary": "Canonical red filled status circle with white cross.",
+        "mustKeep": [
+          "red filled circle",
+          "white cross mark",
+          "status-color behavior"
+        ],
+        "forbidden": [
+          "monochrome outline x for pure status",
+          "document plus x unless content-specific failure is requested"
+        ]
+      },
+      "guardrailOnly": true,
+      "downgradedAt": "2026-07-10",
+      "downgradeReason": "Not yet verified against mature Figma source screenshot/node structure; cannot claim mature standard preview.",
+      "guardrailSpecSummary": {
+        "meta": {
+          "name": "BjhBasicShibai1",
+          "label": "失败",
+          "size": 24,
+          "grid": 24,
+          "platform": "baijiahao",
+          "style": "filled-status",
+          "source": {
+            "route": "team-reuse",
+            "library": "team-shape-spec",
+            "reference_id": "12535:13157",
+            "adaptation_notes": "Canonical colored failure status."
+          }
+        },
+        "geometrySignature": {
+          "summary": "Canonical red filled status circle with white cross.",
+          "mustKeep": [
+            "red filled circle",
+            "white cross mark",
+            "status-color behavior"
+          ],
+          "forbidden": [
+            "monochrome outline x for pure status",
+            "document plus x unless content-specific failure is requested"
+          ]
+        },
+        "note": "Previous iconSpec retained only as non-final guardrail summary? No final shapes allowed until source verification."
+      },
+      "disabledAsFinalSource": true,
+      "disabledReason": "User chose to stop embedded shape-spec reuse because previews did not match the mature component library. Runtime must extract Figma source nodes instead."
+    },
+    {
+      "name": "BjhBasicJingshi1",
+      "label": "警示",
+      "nodeId": "12535:13159",
+      "fidelityLevel": "needs-source-verification",
+      "sourceRoute": "team-reuse",
+      "geometrySignature": {
+        "summary": "Canonical amber filled status circle with white exclamation mark.",
+        "mustKeep": [
+          "amber filled circle",
+          "white exclamation mark",
+          "status-color behavior"
+        ],
+        "forbidden": [
+          "warning triangle",
+          "monochrome outline exclamation for pure status"
+        ]
+      },
+      "guardrailOnly": true,
+      "downgradedAt": "2026-07-10",
+      "downgradeReason": "Not yet verified against mature Figma source screenshot/node structure; cannot claim mature standard preview.",
+      "guardrailSpecSummary": {
+        "meta": {
+          "name": "BjhBasicJingshi1",
+          "label": "警示",
+          "size": 24,
+          "grid": 24,
+          "platform": "baijiahao",
+          "style": "filled-status",
+          "source": {
+            "route": "team-reuse",
+            "library": "team-shape-spec",
+            "reference_id": "12535:13159",
+            "adaptation_notes": "Canonical colored warning status."
+          }
+        },
+        "geometrySignature": {
+          "summary": "Canonical amber filled status circle with white exclamation mark.",
+          "mustKeep": [
+            "amber filled circle",
+            "white exclamation mark",
+            "status-color behavior"
+          ],
+          "forbidden": [
+            "warning triangle",
+            "monochrome outline exclamation for pure status"
+          ]
+        },
+        "note": "Previous iconSpec retained only as non-final guardrail summary? No final shapes allowed until source verification."
+      },
+      "disabledAsFinalSource": true,
+      "disabledReason": "User chose to stop embedded shape-spec reuse because previews did not match the mature component library. Runtime must extract Figma source nodes instead."
+    },
+    {
+      "name": "内容分销",
+      "label": "内容分销",
+      "nodeId": "12535:13400",
+      "fidelityLevel": "needs-source-verification",
+      "sourceRoute": "team-reuse",
+      "sourceInspectedAt": "2026-07-10",
+      "geometrySignature": {
+        "summary": "Rounded diamond/hexagon container with open left/right waist and centered Y-shaped distribution branch.",
+        "mustKeep": [
+          "rounded diamond-like hexagon outer container",
+          "open left and right waist gaps",
+          "top and bottom chevron-like container strokes",
+          "center Y-shaped filled branch",
+          "single lower vertical stem splitting into two upper arms"
+        ],
+        "forbidden": [
+          "share network nodes",
+          "three endpoint dots",
+          "generic content card",
+          "outward arrows",
+          "closed regular hexagon",
+          "thin line Y that loses visual weight"
+        ]
+      },
+      "guardrailOnly": true,
+      "downgradedAt": "2026-07-10",
+      "downgradeReason": "Not yet verified against mature Figma source screenshot/node structure; cannot claim mature standard preview.",
+      "guardrailSpecSummary": {
+        "meta": {
+          "name": "内容分销",
+          "label": "内容分销",
+          "aliases": [
+            "分销",
+            "分发",
+            "内容分发",
+            "分发渠道",
+            "content distribution"
+          ],
+          "size": 24,
+          "grid": 24,
+          "platform": "baijiahao",
+          "style": "outline",
+          "source": {
+            "route": "team-reuse",
+            "library": "team-shape-spec",
+            "reference_id": "12535:13400",
+            "adaptation_notes": "Source-locked mature content distribution; preserve open diamond container and centered Y branch."
+          }
+        },
+        "geometrySignature": {
+          "summary": "Rounded diamond/hexagon container with open left/right waist and centered Y-shaped distribution branch.",
+          "mustKeep": [
+            "rounded diamond-like hexagon outer container",
+            "open left and right waist gaps",
+            "top and bottom chevron-like container strokes",
+            "center Y-shaped filled branch",
+            "single lower vertical stem splitting into two upper arms"
+          ],
+          "forbidden": [
+            "share network nodes",
+            "three endpoint dots",
+            "generic content card",
+            "outward arrows",
+            "closed regular hexagon",
+            "thin line Y that loses visual weight"
+          ]
+        },
+        "note": "Previous iconSpec retained only as non-final guardrail summary? No final shapes allowed until source verification."
+      },
+      "disabledAsFinalSource": true,
+      "disabledReason": "User chose to stop embedded shape-spec reuse because previews did not match the mature component library. Runtime must extract Figma source nodes instead."
+    },
+    {
+      "name": "智能诊断",
+      "label": "智能诊断",
+      "nodeId": "12535:13408",
+      "fidelityLevel": "needs-source-verification",
+      "sourceRoute": "team-reuse",
+      "sourceInspectedAt": "2026-07-10",
+      "geometrySignature": {
+        "summary": "Magnifier outline with short diagonal handle and centered thick diagnostic pulse/waveform inside the lens.",
+        "mustKeep": [
+          "large magnifier lens",
+          "short 45-degree handle at lower right",
+          "inner diagnostic pulse with left horizontal segment, center peak/drop, and right horizontal segment",
+          "pulse sits inside lens without touching lens border"
+        ],
+        "forbidden": [
+          "generic search icon without waveform",
+          "random spark cluster",
+          "medical stethoscope",
+          "dense ECG line with many peaks",
+          "waveform touching or crossing lens border"
+        ]
+      },
+      "guardrailOnly": true,
+      "downgradedAt": "2026-07-10",
+      "downgradeReason": "Not yet verified against mature Figma source screenshot/node structure; cannot claim mature standard preview.",
+      "guardrailSpecSummary": {
+        "meta": {
+          "name": "智能诊断",
+          "label": "智能诊断",
+          "aliases": [
+            "AI诊断",
+            "诊断",
+            "智能分析",
+            "问题检测",
+            "AI diagnose"
+          ],
+          "size": 24,
+          "grid": 24,
+          "platform": "baijiahao",
+          "style": "outline",
+          "source": {
+            "route": "team-reuse",
+            "library": "team-shape-spec",
+            "reference_id": "12535:13408",
+            "adaptation_notes": "Source-locked mature intelligent diagnosis; preserve magnifier plus centered diagnostic waveform."
+          }
+        },
+        "geometrySignature": {
+          "summary": "Magnifier outline with short diagonal handle and centered thick diagnostic pulse/waveform inside the lens.",
+          "mustKeep": [
+            "large magnifier lens",
+            "short 45-degree handle at lower right",
+            "inner diagnostic pulse with left horizontal segment, center peak/drop, and right horizontal segment",
+            "pulse sits inside lens without touching lens border"
+          ],
+          "forbidden": [
+            "generic search icon without waveform",
+            "random spark cluster",
+            "medical stethoscope",
+            "dense ECG line with many peaks",
+            "waveform touching or crossing lens border"
+          ]
+        },
+        "note": "Previous iconSpec retained only as non-final guardrail summary? No final shapes allowed until source verification."
+      },
+      "disabledAsFinalSource": true,
+      "disabledReason": "User chose to stop embedded shape-spec reuse because previews did not match the mature component library. Runtime must extract Figma source nodes instead."
+    }
+  ]
+}

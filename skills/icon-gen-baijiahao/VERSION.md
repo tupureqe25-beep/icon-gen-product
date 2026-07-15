@@ -1,4 +1,4 @@
-# icon-gen-baijiahao version 2026-07-10-124309
+# icon-gen-baijiahao version 2026-07-15-114036
 
-- Updated: 2026-07-10-124309
-- Commit focus: external-source priority before adjacent mature-library repaint; Phase 3 semantic directions before Phase 4A visual schemes; stricter spacing and non-overlap quality gates.
+- Updated: 2026-07-15-114036
+- Commit focus: source-first behavior for both initial semantic directions and variant exploration; external retrieval before Phase 3 options when no exact mature-library match; stricter preview rendering reliability; source-fidelity lock for external-source standardization.

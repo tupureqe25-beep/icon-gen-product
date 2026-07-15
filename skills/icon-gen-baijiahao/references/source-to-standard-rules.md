@@ -9,6 +9,7 @@ Draft v1 — conversion rules for source icons.
 Transform a selected source icon into a Baijiahao-standard, editable, production icon while preserving the intended semantic silhouette.
 
 The final icon should feel like it belongs to Baijiahao, not like a pasted IconPark/Iconfont/Lucide asset.
+For external-source routes, the source icon is the main shape source after it passes intake. The task is not to redraw a new icon inspired by it; the task is to preserve its recognizable semantic silhouette and normalize only the production variables.
 
 When the source is the audited Baijiahao team Figma library, the goal is not to restyle it from scratch. The goal is to reuse or produce a controlled variant that preserves the accepted team metaphor, 48×48 master convention, color exceptions, and visual weight.
 
@@ -23,6 +24,8 @@ If the index entry has `needsSourceVerificationForPixelMatch: true`, text-only r
    - If source verification is required, inspect the Figma node or source screenshot before producing preview geometry.
 2. For external sources, confirm the candidate passed the Source Intake Check in `external-source-connectors.md`.
 3. Select one dominant source metaphor. Do not merge several external icons into one compound sketch.
+   - Preserve the chosen source's outer silhouette family, internal-part relationship, action direction, and major negative-space rhythm.
+   - Do not let AI add a different badge, arrow, sparkle, document fold, or auxiliary object just to make the idea look more “AI-like”.
 4. Remove decorative details not needed at 24px.
 5. Rebuild the icon on a 24×24 canvas with 2px safe zone.
 6. If writing to the Baijiahao component library, scale the 24px logical construction to a 48×48 team master.
@@ -42,7 +45,8 @@ The risky step is the redraw. Apply these guardrails before showing any thumbnai
 
 - Use one primary external source per option. Additional sources may only explain why a metaphor was rejected.
 - Do not use one source for `text increase` and another source for `pencil sparkles` in the same option. Pick the better one, then simplify.
-- Preserve the source's broad silhouette, not its full detail set.
+- Preserve the source's broad silhouette, part relationship, action direction, and composition. Change only what is necessary for Baijiahao stroke, radius, spacing, density, and editability.
+- Do not “AI improve” a passed external source into a different-looking icon. If the standardized result no longer looks like the selected source at the silhouette level, reject and redo it.
 - Do not combine `document + folded corner + long text lines + arrow + AI spark` in one 24px icon.
 - Do not combine `text lines + right arrow + plus` for writing/expansion concepts; it reads as send/next/add, not intelligent expansion.
 - Do not place a spark, plus, badge, or arrow on the same corner that already has a folded document corner.
@@ -94,6 +98,7 @@ Any `no` means return to source inspection or redraw; do not proceed as approved
 - directionality of arrows
 - status meaning
 - recognizable metaphor family
+- external source silhouette/composition when route is `source-adapt`
 - exact mature-library silhouette when `matchType = exact`
 
 ## Change
@@ -114,6 +119,14 @@ Do not change for exact mature-library hits:
 - action direction/orientation
 - number of endpoints/branches if it changes the metaphor
 - mature-library canonical status/color exception
+
+Do not change for external source-adapt hits:
+
+- recognizable source silhouette family
+- primary object/action relationship
+- direction/orientation of the action cue
+- major part placement, unless adjustment is required to prevent collision at 24px
+- source meaning category; never convert a writing/editing source into a crop/resize/open/jump metaphor
 
 ## Reject Source Candidate When
 

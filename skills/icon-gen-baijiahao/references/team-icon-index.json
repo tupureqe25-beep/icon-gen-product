@@ -161,7 +161,7 @@
         "usesLocalFill": true,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "search box",
@@ -172,7 +172,8 @@
       "avoidWhen": [
         "筛选 should use funnel",
         "排序 should use ordered arrows"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicNeirong",
@@ -250,7 +251,7 @@
           "export/share metaphor"
         ],
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "内容分销",
@@ -263,7 +264,27 @@
         "export",
         "download",
         "plain content management"
-      ]
+      ],
+      "geometrySignature": {
+        "outerShape": "rounded diamond-like hexagon / open side container",
+        "openEdges": "left and right waist gaps remain open",
+        "innerMark": "centered Y-shaped filled distribution branch",
+        "forbiddenSimplification": [
+          "share dots",
+          "outward arrows",
+          "generic content card",
+          "closed hexagon"
+        ],
+        "sourceScreenshotDescription": "Figma mature source shows an open rounded diamond/hexagon container with a centered Y branch."
+      },
+      "fidelityLocks": [
+        "must preserve open rounded diamond/hexagon container",
+        "must preserve centered Y-shaped distribution branch",
+        "must keep branch separated from outer container",
+        "must not substitute share-node dots or generic content card"
+      ],
+      "sourceLocked": true,
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicShuju",
@@ -332,7 +353,7 @@
         "statusColor": true,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "pure success feedback",
@@ -342,7 +363,8 @@
       ],
       "avoidWhen": [
         "content-specific publish success requiring document + check"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicShibai1",
@@ -372,7 +394,7 @@
         "statusColor": true,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "pure failure feedback",
@@ -381,7 +403,8 @@
       ],
       "avoidWhen": [
         "content-specific failure requiring document + warning"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicJingshi1",
@@ -411,7 +434,7 @@
         "statusColor": true,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "pure warning",
@@ -421,7 +444,8 @@
       ],
       "avoidWhen": [
         "review diagnosis if magnifier or document context is required"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicTishi1",
@@ -449,7 +473,7 @@
         "statusColor": true,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "information tip",
@@ -459,7 +483,8 @@
       "avoidWhen": [
         "notification bell",
         "marketing announcement"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicBianji",
@@ -546,19 +571,24 @@
       ],
       "nodeId": "12535:13289",
       "family": "content",
-      "matchType": "exact-or-adjacent",
-      "semanticDirection": "upload/import into system",
+      "matchType": "exact",
+      "semanticDirection": "upload file/material into system; source-locked mature-library upload",
       "visualElements": [
-        "tray or base line",
-        "upward/inward arrow"
+        "filled rounded vertical arrow stem",
+        "stroked upward chevron arrowhead",
+        "open receiving tray"
       ],
-      "shapeSummary": "upload family with arrow and receiving base",
+      "shapeSummary": "source-locked upload icon: filled rounded stem + stroked upward chevron arrowhead + open receiving tray; preserve the mature Figma three-part construction",
       "styleAttributes": {
         "masterSize": 48,
         "logicalSize": 24,
         "ink": "#242529",
         "strokeMaster": 4,
-        "visibleParts": 3
+        "visibleParts": 3,
+        "usesLocalFill": true,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "upload file",
@@ -569,7 +599,29 @@
         "download",
         "export",
         "share"
-      ]
+      ],
+      "geometrySignature": {
+        "outerShape": "open receiving tray with bottom horizontal and short side walls",
+        "arrow": "filled rounded vertical stem plus stroked upward chevron arrowhead",
+        "sourceNodeStructure": "3 visible glyph children: filled rounded stem rectangle, stroked chevron vector, stroked open tray vector",
+        "forbiddenSimplification": [
+          "rounded U-shaped outline icon",
+          "single filled polygon arrow",
+          "thin outline-only arrow stem",
+          "cloud upload",
+          "closed box upload",
+          "external library upload geometry"
+        ],
+        "sourceScreenshotDescription": "Figma mature source shows a filled rounded vertical stem, a stroked upward chevron arrowhead, and an open tray."
+      },
+      "fidelityLocks": [
+        "must preserve filled rounded stem",
+        "must preserve stroked upward chevron arrowhead",
+        "must preserve open tray silhouette",
+        "must not convert into rounded U-shaped outline icon"
+      ],
+      "needsSourceVerificationForPixelMatch": true,
+      "sourceLocked": true
     },
     {
       "name": "BjhBasicXiazai",
@@ -584,10 +636,11 @@
       "matchType": "exact",
       "semanticDirection": "download/save out of system",
       "visualElements": [
-        "downward arrow",
-        "receiving baseline/tray"
+        "filled rounded vertical arrow stem",
+        "stroked downward chevron arrowhead",
+        "open receiving tray"
       ],
-      "shapeSummary": "download action with clear downward direction",
+      "shapeSummary": "source-locked download icon: filled rounded stem + stroked downward chevron arrowhead + open receiving tray; preserve the mature Figma three-part construction",
       "styleAttributes": {
         "masterSize": 48,
         "logicalSize": 24,
@@ -596,7 +649,8 @@
         "visibleParts": 3,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only.",
+        "usesLocalFill": true
       },
       "useWhen": [
         "download asset",
@@ -606,7 +660,29 @@
       "avoidWhen": [
         "导出 business export",
         "上传/import"
-      ]
+      ],
+      "geometrySignature": {
+        "outerShape": "open receiving tray with bottom horizontal and short side walls",
+        "arrow": "filled rounded vertical stem plus stroked downward chevron arrowhead",
+        "sourceNodeStructure": "3 visible glyph children: filled rounded stem rectangle, stroked chevron vector, stroked open tray vector",
+        "forbiddenSimplification": [
+          "rounded U-shaped outline icon",
+          "single filled polygon arrow",
+          "thin outline-only arrow stem",
+          "cloud download",
+          "closed box download",
+          "external library download geometry"
+        ],
+        "sourceScreenshotDescription": "Figma mature source shows a filled rounded vertical stem, a stroked downward chevron arrowhead, and an open tray."
+      },
+      "fidelityLocks": [
+        "must preserve filled rounded stem",
+        "must preserve stroked downward chevron arrowhead",
+        "must preserve open tray silhouette",
+        "must not convert into rounded U-shaped outline icon"
+      ],
+      "sourceLocked": true,
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicDaochu",
@@ -632,7 +708,7 @@
         "allowsSolid": true,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "export list",
@@ -642,7 +718,8 @@
       "avoidWhen": [
         "share/social sharing",
         "download-only action"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicPaixu",
@@ -670,7 +747,7 @@
         "strokeMaster": 4,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "table/list ordering",
@@ -679,7 +756,8 @@
       "avoidWhen": [
         "筛选 funnel",
         "搜索 magnifier"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicSaixuan",
@@ -703,7 +781,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "filter panel",
@@ -713,7 +791,8 @@
       "avoidWhen": [
         "search",
         "sort"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicTongzhi",
@@ -739,7 +818,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "notification entry",
@@ -749,7 +828,8 @@
       "avoidWhen": [
         "pure warning status",
         "marketing announcement"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicXinxi",
@@ -809,7 +889,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "collect content",
@@ -819,7 +899,8 @@
       "avoidWhen": [
         "download/save file",
         "rating star"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicYanjing",
@@ -882,7 +963,7 @@
         "visibleParts": 2,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "engagement like",
@@ -891,7 +972,8 @@
       "avoidWhen": [
         "审核通过",
         "成功状态"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicYonghu",
@@ -988,7 +1070,7 @@
         "visibleParts": 2,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "date field",
@@ -997,7 +1079,8 @@
       ],
       "avoidWhen": [
         "history/recent time; use clock"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicShijian",
@@ -1060,7 +1143,7 @@
         "visibleParts": 2,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "settings page",
@@ -1069,7 +1152,8 @@
       "avoidWhen": [
         "AI优化; use sliders/check/spark",
         "filter; use funnel"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicShanchu",
@@ -1098,7 +1182,7 @@
         "visibleParts": 5,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "delete",
@@ -1107,7 +1191,8 @@
       ],
       "avoidWhen": [
         "关闭/dismiss; use close cross"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicLiebiao",
@@ -1164,7 +1249,7 @@
         "visibleParts": 2,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "draft",
@@ -1174,7 +1259,8 @@
       "avoidWhen": [
         "archive",
         "deleted content"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "发送",
@@ -1233,7 +1319,10 @@
         "masterSize": 48,
         "logicalSize": 24,
         "ink": "#242529",
-        "visibleParts": 2
+        "visibleParts": 2,
+        "sourceLockedSilhouette": true,
+        "needsSourceVerificationForPixelMatch": true,
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "smart diagnosis",
@@ -1244,7 +1333,26 @@
       "avoidWhen": [
         "generic AI generation",
         "pure search"
-      ]
+      ],
+      "geometrySignature": {
+        "outerShape": "large magnifier lens with 45-degree handle",
+        "innerMark": "centered diagnostic pulse / waveform",
+        "forbiddenSimplification": [
+          "generic search only",
+          "spark cluster",
+          "stethoscope",
+          "dense multi-peak ECG"
+        ],
+        "sourceScreenshotDescription": "Figma mature source shows a magnifier with a bold diagnostic waveform inside the lens."
+      },
+      "fidelityLocks": [
+        "must preserve magnifier lens and lower-right handle",
+        "must preserve inner diagnostic pulse",
+        "must keep waveform inside lens with breathing room",
+        "must not add AI sparks or random decorations"
+      ],
+      "sourceLocked": true,
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "数字人",
@@ -1401,7 +1509,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "video play",
@@ -1409,7 +1517,8 @@
       ],
       "avoidWhen": [
         "publish/send"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicZanting",
@@ -1432,7 +1541,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "pause media",
@@ -1440,7 +1549,8 @@
       ],
       "avoidWhen": [
         "stop/cancel"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicQuanping",
@@ -1465,7 +1575,7 @@
         "visibleParts": 4,
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "fullscreen",
@@ -1473,7 +1583,8 @@
       ],
       "avoidWhen": [
         "navigation expand/collapse"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicShouye",
@@ -1498,7 +1609,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "首页",
@@ -1508,7 +1619,8 @@
       "avoidWhen": [
         "内容页",
         "返回"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicHuodong",
@@ -1533,7 +1645,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "活动入口",
@@ -1543,7 +1655,8 @@
       "avoidWhen": [
         "课程",
         "通知"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicBianxian",
@@ -1568,7 +1681,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "变现",
@@ -1578,7 +1691,8 @@
       "avoidWhen": [
         "纯数据",
         "积分"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicKecheng",
@@ -1605,7 +1719,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "课程",
@@ -1615,7 +1729,8 @@
       "avoidWhen": [
         "文章",
         "小说"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicKefu",
@@ -1640,7 +1755,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "客服",
@@ -1650,7 +1765,8 @@
       "avoidWhen": [
         "普通用户",
         "通知"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicDaima",
@@ -1676,7 +1792,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "代码",
@@ -1686,7 +1802,8 @@
       "avoidWhen": [
         "内容分销",
         "详情"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicCard",
@@ -1712,7 +1829,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "卡片",
@@ -1721,7 +1838,8 @@
       ],
       "avoidWhen": [
         "内容卡片 if content/document is intended"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicTuijian",
@@ -1746,7 +1864,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "推荐",
@@ -1756,7 +1874,8 @@
       "avoidWhen": [
         "通知",
         "关注"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicDuihao3",
@@ -1781,7 +1900,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "勾选",
@@ -1790,7 +1909,8 @@
       ],
       "avoidWhen": [
         "纯成功状态; use BjhBasicChenggong1"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicYeqian",
@@ -1814,7 +1934,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "页签",
@@ -1823,7 +1943,8 @@
       ],
       "avoidWhen": [
         "标签/tag if metadata tag"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicFujian",
@@ -1848,7 +1969,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "附件",
@@ -1858,7 +1979,8 @@
       "avoidWhen": [
         "链接",
         "上传"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicShang",
@@ -1882,7 +2004,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "向上",
@@ -1891,7 +2013,8 @@
       ],
       "avoidWhen": [
         "上传 if file action is intended"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "小说",
@@ -1916,7 +2039,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "小说",
@@ -1926,7 +2049,8 @@
       "avoidWhen": [
         "文章",
         "课程"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicGouwudai",
@@ -1951,7 +2075,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "商品",
@@ -1961,7 +2085,8 @@
       "avoidWhen": [
         "权益",
         "收益"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "直播回看",
@@ -1987,7 +2112,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "直播回看",
@@ -1997,7 +2122,8 @@
       "avoidWhen": [
         "普通播放",
         "历史记录"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "时钟",
@@ -2023,7 +2149,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "时钟",
@@ -2032,7 +2158,8 @@
       ],
       "avoidWhen": [
         "日期; use BjhBasicRiqi"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "表情",
@@ -2056,7 +2183,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "表情",
@@ -2066,7 +2193,8 @@
       "avoidWhen": [
         "用户头像",
         "状态提示"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "左撤回",
@@ -2091,7 +2219,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "撤回",
@@ -2101,7 +2229,8 @@
       "avoidWhen": [
         "返回导航",
         "删除"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "加粗",
@@ -2124,7 +2253,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "加粗",
@@ -2133,7 +2262,8 @@
       ],
       "avoidWhen": [
         "重要/强调状态"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "倾斜",
@@ -2156,7 +2286,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "倾斜",
@@ -2165,7 +2295,8 @@
       ],
       "avoidWhen": [
         "倾斜方向/导航"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "下划线",
@@ -2188,7 +2319,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "下划线",
@@ -2197,7 +2328,8 @@
       "avoidWhen": [
         "分割线",
         "链接"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicRongyu",
@@ -2223,7 +2355,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "荣誉",
@@ -2233,7 +2365,8 @@
       "avoidWhen": [
         "权益",
         "成功"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicJingshi",
@@ -2258,7 +2391,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "非填色警示",
@@ -2266,7 +2399,8 @@
       ],
       "avoidWhen": [
         "纯警告状态; use BjhBasicJingshi1"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicXiangqing",
@@ -2291,7 +2425,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "详情",
@@ -2301,7 +2435,8 @@
       "avoidWhen": [
         "消息",
         "通知"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicYiwen",
@@ -2327,7 +2462,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "疑问",
@@ -2337,7 +2472,8 @@
       "avoidWhen": [
         "客服",
         "提示"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicShuaxin",
@@ -2361,7 +2497,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "刷新",
@@ -2369,7 +2505,8 @@
       ],
       "avoidWhen": [
         "同步; use BjhBasicJiaohuan or sync family"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicJiaohuan",
@@ -2395,7 +2532,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "交换",
@@ -2405,7 +2542,8 @@
       "avoidWhen": [
         "刷新",
         "更换"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicGenghuan",
@@ -2430,7 +2568,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "更换",
@@ -2440,7 +2578,8 @@
       "avoidWhen": [
         "刷新",
         "交换"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicGuanbi",
@@ -2465,7 +2604,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "关闭",
@@ -2475,7 +2614,8 @@
       "avoidWhen": [
         "删除",
         "返回"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicWancheng",
@@ -2500,7 +2640,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "完成动作",
@@ -2508,7 +2648,8 @@
       ],
       "avoidWhen": [
         "纯成功状态; use BjhBasicChenggong1"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicJia",
@@ -2534,7 +2675,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "新增",
@@ -2543,7 +2684,8 @@
       ],
       "avoidWhen": [
         "展开更多"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicJifen",
@@ -2567,7 +2709,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "积分",
@@ -2576,7 +2718,8 @@
       "avoidWhen": [
         "收益",
         "资产"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicShouji",
@@ -2600,7 +2743,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "手机",
@@ -2610,7 +2753,8 @@
       "avoidWhen": [
         "账号",
         "设备设置"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicChuchuang",
@@ -2634,7 +2778,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "橱窗",
@@ -2644,7 +2788,8 @@
       "avoidWhen": [
         "购物袋",
         "卡片"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicDaohangshouqi",
@@ -2668,7 +2813,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "导航收起",
@@ -2676,7 +2821,8 @@
       ],
       "avoidWhen": [
         "普通收起箭头"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicDaohangzhankai",
@@ -2700,7 +2846,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "导航展开",
@@ -2708,7 +2854,8 @@
       ],
       "avoidWhen": [
         "普通展开箭头"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicZhankai1",
@@ -2731,7 +2878,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "展开",
@@ -2739,7 +2886,8 @@
       ],
       "avoidWhen": [
         "全屏"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicShouqi1",
@@ -2762,7 +2910,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "收起",
@@ -2770,7 +2918,8 @@
       ],
       "avoidWhen": [
         "导航收起 if sidebar context"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicYingliang",
@@ -2795,7 +2944,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "音量",
@@ -2804,7 +2953,8 @@
       ],
       "avoidWhen": [
         "通知"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicJingyin",
@@ -2828,7 +2978,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "静音",
@@ -2836,7 +2986,8 @@
       ],
       "avoidWhen": [
         "关闭弹窗"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicJigou",
@@ -2860,7 +3011,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "机构",
@@ -2870,7 +3021,8 @@
       "avoidWhen": [
         "团队",
         "用户"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicWuweigui",
@@ -2895,7 +3047,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "无违规",
@@ -2905,7 +3057,8 @@
       "avoidWhen": [
         "成功",
         "安全"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicDengji",
@@ -2929,7 +3082,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "等级",
@@ -2939,7 +3092,8 @@
       "avoidWhen": [
         "荣誉",
         "积分"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicJiantoumianxing",
@@ -2963,7 +3117,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "面性箭头",
@@ -2971,7 +3125,8 @@
       ],
       "avoidWhen": [
         "默认线性箭头"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicGuanbiteshu",
@@ -2995,14 +3150,15 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "特殊关闭"
       ],
       "avoidWhen": [
         "普通关闭; use BjhBasicGuanbi"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicjiesuan",
@@ -3026,7 +3182,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "结算",
@@ -3036,7 +3192,8 @@
       "avoidWhen": [
         "收益",
         "资产"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicrenwuredu",
@@ -3060,7 +3217,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "任务热度",
@@ -3070,7 +3227,8 @@
       "avoidWhen": [
         "活动",
         "数据增长"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicDianshangquanyi",
@@ -3094,7 +3252,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "电商权益",
@@ -3103,7 +3261,8 @@
       "avoidWhen": [
         "荣誉",
         "优惠券"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicGengduoxiala",
@@ -3128,7 +3287,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "更多下拉",
@@ -3136,7 +3295,8 @@
       ],
       "avoidWhen": [
         "普通更多"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     },
     {
       "name": "BjhBasicDaoruOld",
@@ -3160,7 +3320,7 @@
         "ink": "#242529",
         "sourceLockedSilhouette": true,
         "needsSourceVerificationForPixelMatch": true,
-        "verificationReason": "offline index is semantic-first and may not contain enough visible-shape detail for exact mature-library fidelity"
+        "verificationReason": "Exact mature-library reuse must extract/inspect current Figma source before standard preview; embedded notes are guardrail-only."
       },
       "useWhen": [
         "导入",
@@ -3170,7 +3330,8 @@
         "上传",
         "下载",
         "导出"
-      ]
+      ],
+      "needsSourceVerificationForPixelMatch": true
     }
   ],
   "confusionRules": [

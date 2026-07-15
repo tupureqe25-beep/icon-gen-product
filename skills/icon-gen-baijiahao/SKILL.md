@@ -49,7 +49,7 @@ If quality, semantic clarity, or editability cannot be guaranteed, stop and retu
 
 - Never paste, import, or embed SVG into Figma as the final output. SVG is preview-only.
 - Never skip semantic direction confirmation unless the user has already provided a fully confirmed direction.
-- Never copy external library geometry, path data, coordinates, or visual style.
+- Never copy external library path data, exact coordinates, or visual style. Preserve source silhouette/composition through native redraw and Baijiahao standardization instead.
 - Never let external sources override Baijiahao style, team library consistency, or user context.
 - Never output icons with collapsed counters, tangled overlaps, broken strokes, cramped details, or visual fill blobs.
 - Never output icons with accidental overlaps, misaligned stroke endpoints, glued badges, swallowed terminals, or local black knots that look like generation errors rather than intentional construction.
@@ -166,13 +166,15 @@ Load `references/source-decision-pipeline.md`.
 Load `references/source-library-protocol.md`.
 Load `references/external-source-connectors.md` before using any external icon library.
 Load `references/team-icon-index.json` before any runtime Figma library lookup.
+Do not use `references/team-icon-shape-specs.json` as the mature standard preview/spec source. It is guardrail-only. If the team mature library has an exact hit, read/extract the Figma source node or source screenshot before showing `复用成熟库标准版`.
+Prefer `scripts/lookup_team_icon.py "{query}" --json` for mature-library lookup whenever the query has a concrete label, alias, or node ID. This deterministic lookup ranks longer exact phrases before shorter base concepts, so `内容分销` must not be captured by the broader `内容` entry.
 
 Before generating from scratch, run the automated source decision pipeline:
 
 ```
 1. Team mature library exact match only
 2. External approved source-library retrieval
-3. Baijiahao standardization from external source
+3. Baijiahao standardization from external source with source-fidelity lock
 4. Team mature-library adjacent adaptation fallback
 5. AI generation fallback
 ```
@@ -180,31 +182,37 @@ Before generating from scratch, run the automated source decision pipeline:
 The source route changes how the icon is made:
 
 - **reuse route**: inspect existing team icon, preserve accepted metaphor, adapt only if needed
-- **source-adapt route**: use a real external/team source icon as semantic reference, then redraw into Baijiahao rules
+- **source-adapt route**: use a real external/team source icon as the primary shape source, preserve its semantic silhouette/composition, then only normalize it into Baijiahao rules
 - **team-adapt route**: use adjacent mature-library knowledge only after external retrieval is unavailable, weak, unsuitable, or rejected
 - **generate route**: create new semantic options and preview from scratch
 
-Never copy external geometry. Source libraries provide meaning and composition patterns, not final coordinates.
+Never copy external path data, exact coordinates, or license-sensitive geometry. But once an external source passes intake, treat its visible semantic silhouette and composition as source-locked: do not let AI reinterpret, remix, beautify, or replace it. Standardization should change only Baijiahao-controlled variables such as stroke, corner radius, live area, density, spacing, optical centering, and editable-node decomposition.
 Do not make routine skill execution depend on reading the Figma mature library. Figma lookup is a maintenance/verifying path; the offline team index is the default semantic matching layer.
 Do not jump from an adjacent team-library match directly into standardized adaptation. Adjacent matches help constrain meaning, but real external-source retrieval should happen first because direct AI/semantic adaptation is weaker than using a high-quality source metaphor.
 For any non-exact mature-library case, external sources have higher priority than mature-library AI/controlled repaint. Adjacent mature-library matches are guardrails and fallback, not the primary shape source.
+When the user asks to `生成一些变体`, `多出几个方案`, or chooses a semantic direction, do not treat that as permission for free AI drawing. Use the same priority: retrieve external approved sources first, source-lock any passing candidates, and use AI generation only after real sources fail or the user explicitly requests original exploration.
 
 Select a runtime mode before preview:
 
-- default to `fast` for normal requests using the offline index and distilled rules
-- use `strict` for exact mature-library reuse, final production writeback, or any source-locked icon requiring visual fidelity
+- default to `fast` only for semantic lookup, external-source exploration, or non-source-locked requests
+- use `strict` for every exact mature-library reuse, mature-library preview, final production writeback, or any source-locked icon requiring visual fidelity
 - use `explore` for non-standard variants, external-source adaptation, or AI fallback
 - use `maintenance` only when refreshing the mature-library index/cache
 
 Report the selected mode briefly in Chinese. Never sacrifice mature-library fidelity just to stay fast.
-When using external sources, call `scripts/search_external_icons.py` and inspect real results before claiming a Lucide, Tabler, Phosphor, IconPark, or Iconfont match. If the script cannot retrieve or cache the source data, report the source as unavailable instead of inventing candidates.
+When using external sources, call `scripts/search_external_icons.py` and inspect real results before claiming a Lucide, Fluent UI, Material Symbols, Tabler, Ant Design Icons, TDesign Icons, IconPark, Carbon Icons, Phosphor, Remix Icon, or Iconfont match. If the script cannot retrieve or cache the source data, report the source as unavailable instead of inventing candidates.
 
 If `team-icon-index.json` returns an exact mature-library match, do not treat it as a loose semantic hint. Treat it as a source-locked canonical icon:
 
 - skip divergent metaphor exploration unless the user asks for variants
 - preview or redraw the mature-library silhouette as closely as possible
-- if the offline index marks `needsSourceVerificationForPixelMatch: true`, inspect the runtime Figma node before SVG preview; do not generate a preview from text-only memory
-- if the offline index lacks enough visual detail and runtime Figma access is unavailable, stop and ask for source verification instead of producing a plausible reconstruction
+- inspect the Figma source node or source screenshot before showing the standard preview
+- if `scripts/lookup_team_icon.py` returns an exact mature-library result, treat it as `team-reuse-needs-verification`; do not use a locally reconstructed `iconSpec` as the standard preview
+- use the mature-library `visualElements`, `shapeSummary`, `geometrySignature`, and `fidelityLocks` as binding shape constraints, not inspirational wording
+- if the mature-library screenshot/source shows a closed/open container, U-shaped tray, arrow placement, icon orientation, or dominant silhouette, preserve those features exactly at the silhouette level
+- never simplify a source-locked tray/container icon into a bare baseline, generic arrow, generic upload symbol, or external-library convention
+- inspect the runtime Figma node before SVG preview; do not generate a mature-library standard preview from text-only memory or embedded shape notes
+- if the offline index lacks enough visual detail and runtime Figma access is unavailable, stop and ask for source verification instead of producing a plausible reconstruction; do not claim `复用成熟库标准版`
 - never substitute another common metaphor just because it has similar meaning
 
 ---
@@ -212,11 +220,14 @@ If `team-icon-index.json` returns an exact mature-library match, do not treat it
 ## Phase 3 — Semantic Direction Plan
 
 Load `references/baijiahao-metaphor-table.md`.
+Load `references/preview-rendering-rules.md` before showing any thumbnail or mature-library preview.
 Use `references/team-icon-index.json` to find exact, alias, or adjacent team-library matches before inventing semantic options.
 Phase 3 is for choosing **meaning direction**, not for final visual solution generation.
 Do not run full external-source adaptation or produce final-style visual schemes before the user selects a semantic direction.
-Use mature-library and external-source signals only as evidence for whether a semantic direction is plausible.
-Do not let AI-drawn glyphs appear to outrank source libraries. If a Phase 3 sketch is not backed by an exact mature-library source or a retrieved external source, treat it as a text-only semantic card rather than an icon-like visual.
+Use mature-library and external-source signals as the evidence for whether a semantic direction is plausible.
+When the mature library has no exact source-locked hit, run approved external-source retrieval before presenting Phase 3 options. Phase 3 options should be source-informed/source-backed whenever possible, not invented from text alone.
+Do not let AI-drawn glyphs appear to outrank source libraries. Phase 3 sketches are only allowed after external retrieval has been attempted. If a real external candidate passes intake, use a source-backed thumbnail instead of a self-drawn schematic. If no real source passes intake, label any sketch as `AI 兜底草图（非最终方案）`.
+Variant requests are stricter: if the user asks `生成变体`, `多出几个方案`, `探索非标准变体`, or continues after rejecting/branching from an exact mature-library icon, do not produce self-drawn low-fidelity sketches before external retrieval. First run approved external-source retrieval for the variant intent, then present source-backed variant directions or concrete schemes. Use low-fidelity AI sketches only when no real external candidate passes intake, and label them as `AI 兜底草图`.
 
 Translate the brief into 2–3 semantic directions. Each direction should represent a genuinely different interpretation of the user's intent.
 For `智能扩写`, valid semantic directions might be:
@@ -227,17 +238,23 @@ For `智能扩写`, valid semantic directions might be:
 
 These are not final icon schemes yet. They are choices about what the icon should mean.
 
-Each semantic direction may include a simple low-fidelity direction thumbnail so the user can understand the rough metaphor, but the thumbnail must not be treated as the final SVG preview or final generated icon.
-Default to text-first semantic direction cards. Add thumbnails only when they are source-backed or can be drawn as a safe, non-icon diagram without looking like a final solution.
+Each semantic direction must include a visible thumbnail so the user can understand the rough metaphor, but the thumbnail must not be treated as the final SVG preview or final generated icon.
+Default thumbnail source is a retrieved external candidate or verified mature-library source/adjacent evidence. Do not create a fresh schematic thumbnail first if external retrieval has not been attempted.
+Default to visual semantic direction cards: thumbnail first, then short text. The thumbnail can be source-backed or a safe schematic sketch. It must not look like a polished final icon and must not imply that AI generation has outranked external-source retrieval.
 
 Thumbnail preview rules:
 
 - Keep each thumbnail as a small 24×24 SVG sketch using Baijiahao defaults.
 - Render thumbnails on a high-contrast light preview tile even if the chat/app uses dark mode; the user must be able to judge the glyph clearly.
 - Render or attach the thumbnail visually. Do not paste raw SVG source code into the user-facing message.
+- Before emitting any `![...]({path})`, verify the preview file exists, is non-empty, and uses an absolute path when needed.
+- If a preview artifact cannot be rendered, write `缩略图暂不可渲染` or `预览状态：暂不可渲染` with the reason; never show a broken image placeholder.
 - If the current surface cannot render inline SVG, write each thumbnail to a temporary `.svg` file and reference it as an image/file link; keep the source code out of the chat body.
+- If image/file attachment is also unavailable, explicitly write `缩略图暂不可渲染` for that option. Do not silently omit the thumbnail line.
 - Treat thumbnails as meaning sketches, not approved production previews.
-- Do not generate new icon-like AI thumbnails in Phase 3 merely to make the directions look visual. If no source-backed thumbnail is available, omit the thumbnail.
+- Do not generate polished icon-like AI thumbnails in Phase 3 merely to make the directions look final. If no source passes retrieval and an AI fallback sketch is needed, use simplified schematic marks only: separated circles, lines, arrows, plus signs, trend lines, cards, or people outlines.
+- Do not omit external retrieval merely because Phase 3 is "only semantic planning". Retrieval is used to ground the semantic options and prevent AI-first visual invention.
+- External retrieval must happen before thumbnails/options are shown unless an exact mature-library standard version already solves the request.
 - Show only broad metaphor families. Avoid detailed construction, source-specific geometry, or final stroke composition.
 - Phase 3 meaning sketches must be non-overlapping diagrams. Do not let arrows, plus marks, pens, sparks, document corners, or text lines touch, cross, cover, or stack on each other.
 - Use separated zones for compound meaning sketches: main object in one zone, secondary mark in another zone, with at least 2px visible gap; prefer 4px when space allows.
@@ -266,10 +283,20 @@ Use this pattern for exact mature-library hits:
 可选探索 — 非标准变体
   如果你想探索不同业务场景或更强表达，我可以再给 2–3 个非标准方向。
   这些方向会标记为“变体/探索”，不会覆盖成熟库标准版。
-  展开变体时先给语义方向，不直接绘制 AI 变体图；用户选定方向后再检索外部来源并生成具体方案。
+  展开变体时先检索外部来源，不先绘制自造语义草图。
+  外部来源命中后，基于真实来源图标给 1–3 个来源支持的变体方向/方案，并以来源图标为主形态做百家号规范化。
+  只有检索不到或来源不合格时，才进入 AI 生成兜底，并明确标注为 `AI 兜底草图/方案`。
 
 追问：“默认建议走方案 A。你要直接预览成熟库标准版，还是需要我展开非标准变体？”
 ```
+
+If the exact mature-library item has not been extracted from the Figma source node in the current run, change the preview line to:
+
+```
+源图校验：需要读取成熟库源节点或源截图后再显示标准版预览；当前不能凭文字描述或本地形态笔记重画。
+```
+
+Do not show a self-drawn approximation under the label `标准版预览`.
 
 Each option must include:
 
@@ -282,19 +309,24 @@ Each option must include:
 Required pattern:
 
 ```
+来源预检：
+- 成熟库：{精确命中 / 相近命中 / 未命中}
+- 外部来源：{已检索并采用 / 已检索但不适合 / 检索不可用}
+- AI 草图：{不需要 / 外部无合格来源后的兜底}
+
 语义方向 A — {方向名称}
   语义方向草图：![方向A草图]({thumbnail-svg-or-png-path})
   该方向表达：...
   可能视觉元素：...
   适用场景：...
-  来源依据：成熟库相近族 / 可能外部来源族 / 业务语义
+  来源依据：成熟库相近族 / 外部来源 {library/iconName} / AI 兜底
   风险判断：...
 
 语义方向 B — {方向名称}
   语义方向草图：![方向B草图]({thumbnail-svg-or-png-path})
   ...
 
-追问：“你想先走哪个语义方向？选定后我再检索/筛选来源，并生成这个方向下的具体 icon 方案。”
+追问：“你想先走哪个语义方向？选定后我会沿用已检索的来源继续筛选/补检索，并生成这个方向下的具体 icon 方案。”
 ```
 
 Do not proceed to source-specific visual schemes until the semantic direction is confirmed or clearly implied. If the user comments on a thumbnail's shape, revise the Phase 3 meaning sketch first instead of jumping to final spec.
@@ -312,7 +344,7 @@ selected semantic direction
 → run mature-library exact/adjacent check for this direction
 → run external-source retrieval unless exact mature-library reuse already solves the request
 → source intake check for shape/semantic fit
-→ if source passes, generate 1–3 low-risk external-source-adapted visual schemes
+→ if source passes, generate 1–3 low-risk external-source-adapted visual schemes with source-fidelity lock
 → if no source passes, then use adjacent mature-library controlled adaptation
 → if both fail, use AI fallback
 → ask which scheme enters formal SVG preview
@@ -324,11 +356,13 @@ Rules:
 - Do not output three unrelated directions after the user has already chosen one direction.
 - Source retrieval results are inputs to scheme generation, not semantic direction options.
 - Before any concrete visual scheme, state the external-source result: adopted / rejected with reason / unavailable / unnecessary because exact mature reuse.
+- When external candidates pass intake, use them as the concrete scheme source instead of inventing AI variants. Preserve the selected source icon's recognizable silhouette, part relationship, direction, and composition; only change Baijiahao style variables.
+- Do not merge several retrieved icons into one “better” AI composite. Each selectable方案 should have one primary source icon or clearly state that no source passed and the route has fallen back.
 - Do not use mature-library adjacent repaint as the first concrete visual scheme when external source retrieval has not passed or failed yet.
 - Do not generate AI visual schemes until external retrieval has been attempted and all retrieved candidates are unavailable, semantically weak, visually unsuitable, or rejected by the user.
 - If no external source passes intake, say so and use mature-library constraints or AI fallback inside the selected direction.
 - Only low-risk visual schemes can be selectable.
-- Prefer one strong scheme over three weak schemes.
+- Prefer one strong source-backed scheme over three weak schemes. Do not force 3 if only 1–2 external candidates are truly good.
 
 Required pattern:
 
@@ -345,7 +379,8 @@ Required pattern:
   方案预览：![方案1预览]({thumbnail-svg-or-png-path})
   视觉元素：...
   表达含义：...
-  来源依据：...
+  来源依据：{来源库 + 图标名/ID；说明保留了哪些原始语义形态}
+  规范化处理：{只列 stroke / radius / spacing / density / editable-node changes}
   风险判断：...
 
 方案 2 — {具体视觉方案名}
@@ -365,8 +400,11 @@ Generate a formal visual SVG preview for the confirmed visual scheme so the desi
 
 Rules:
 
+- Load `references/preview-rendering-rules.md`.
 - Use SVG only as a preview artifact.
 - Show the SVG preview visually whenever possible. If inline rendering is unavailable, save the SVG as a file and link/embed it; do not dump long SVG source into the main response unless the user explicitly asks for code.
+- If the chat surface may not render SVG reliably, also export a PNG preview and show the PNG. Keep SVG as the editable preview artifact.
+- Do not ask for approval against a broken placeholder. If preview rendering fails, stop and fix/export the preview artifact before continuing.
 - Build the formal preview from the selected Phase 4A visual scheme, but refine proportions, spacing, and source fidelity before showing it.
 - Do not simply reuse a rough thumbnail as the formal preview if it has not passed quality gates.
 - Use Baijiahao defaults from `baijiahao-icon-style.md`.
@@ -413,7 +451,7 @@ Schema:
     "color_mode": "monochrome",
     "source": {
       "route": "team-reuse | source-adapt | ai-generated",
-      "library": "team-figma | iconpark | iconfont | lucide | tabler | phosphor | none",
+      "library": "team-figma | lucide | fluent | material | tabler | antd | tdesign | iconpark | carbon | phosphor | remix | iconfont | none",
       "reference_id": "",
       "adaptation_notes": ""
     },
@@ -506,9 +544,11 @@ references/
 ├── runtime-modes-and-cache.md     ← fast/strict/explore/maintenance mode and mature-source cache rules
 ├── source-decision-pipeline.md    ← automated mature-library → external-source → AI route decision
 ├── source-library-protocol.md     ← team/external source priority and adaptation rules
-├── external-source-connectors.md  ← real Lucide/Tabler/Phosphor/IconPark/Iconfont retrieval protocol
+├── external-source-connectors.md  ← real Lucide/Fluent/Material/Tabler/AntD/TDesign/IconPark/Carbon/Phosphor/Remix/Iconfont retrieval protocol
+├── preview-rendering-rules.md     ← ensures thumbnails/source previews are real renderable artifacts, not broken placeholders
 ├── skill-file-annotated-comparison.md ← learning doc comparing this SKILL.md with icon-gen-promax
 ├── team-icon-index.json           ← offline mature-library semantic index; use before runtime Figma lookup
+├── team-icon-shape-specs.json     ← guardrail-only notes; do not use as final mature-library preview/draw source
 ├── team-icon-library.md           ← audited source metadata and optional runtime Figma lookup protocol
 ├── team-index-maintenance.md      ← maintainer-only workflow for refreshing distilled team index
 ├── source-to-standard-rules.md    ← how to convert source icons into Baijiahao standard

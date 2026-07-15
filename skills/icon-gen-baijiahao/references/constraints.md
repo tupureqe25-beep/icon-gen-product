@@ -424,6 +424,9 @@ Allowed in Phase 3:
 - document/card + detached mark with at least 2px gap, preferably 4px
 - pen/edit mark + separate text-line hint with at least 2px gap, preferably 4px
 
-If a direction cannot be sketched without overlap, omit the thumbnail and
-describe the semantic direction in text. Do not present an overlapped sketch as
+If a direction cannot be sketched without overlap, do not silently omit the
+thumbnail. Replace it with an explicit placeholder line:
+`语义方向草图：缩略图暂不可渲染 / 该方向无法在 24px 草图中保持无重叠`.
+Then describe the semantic direction in text and keep the option selectable only
+if the meaning itself is low risk. Do not present an overlapped sketch as
 `风险低`.

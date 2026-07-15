@@ -33,17 +33,53 @@ PACKAGE_SPECS = {
         "risk": "low",
         "note": "clean outline baseline; good for system/action icons",
     },
+    "fluent": {
+        "package": "@fluentui/svg-icons",
+        "license": "MIT",
+        "risk": "low",
+        "note": "Microsoft Fluent regular icons; good for toolbar, AI assistant, and product UI actions",
+    },
+    "material": {
+        "package": "@material-symbols/svg-400",
+        "license": "Apache-2.0",
+        "risk": "medium",
+        "note": "broad Material Symbols metaphors; use rounded source names as semantic references only",
+    },
     "tabler": {
         "package": "@tabler/icons",
         "license": "MIT",
         "risk": "low",
         "note": "broad admin-console outline icon set",
     },
+    "antd": {
+        "package": "@ant-design/icons-svg",
+        "license": "MIT",
+        "risk": "medium",
+        "note": "Ant Design outlined icons; good for Chinese B-end and admin product conventions",
+    },
+    "tdesign": {
+        "package": "tdesign-icons-svg",
+        "license": "MIT",
+        "risk": "medium",
+        "note": "Tencent TDesign icons; good for Chinese B-end operation and component-library metaphors",
+    },
+    "carbon": {
+        "package": "@carbon/icons",
+        "license": "Apache-2.0",
+        "risk": "medium",
+        "note": "IBM Carbon icons; useful for data, analytics, enterprise tooling, and status metaphors",
+    },
     "phosphor": {
         "package": "@phosphor-icons/core",
         "license": "MIT",
         "risk": "medium",
         "note": "expressive forms; use as metaphor reference, adapt style strictly",
+    },
+    "remix": {
+        "package": "remixicon",
+        "license": "Apache-2.0",
+        "risk": "medium",
+        "note": "large remixicon line set; useful as broad fallback but filter decorative or dense shapes",
     },
     "iconpark": {
         "package": "@icon-park/svg",
@@ -53,7 +89,20 @@ PACKAGE_SPECS = {
     },
 }
 
-DEFAULT_LIBRARIES = ["lucide", "tabler", "iconpark", "phosphor"]
+DEFAULT_LIBRARIES = [
+    "lucide",
+    "fluent",
+    "material",
+    "tabler",
+    "antd",
+    "tdesign",
+    "iconpark",
+    "carbon",
+    "phosphor",
+    "remix",
+]
+
+SOURCE_LIBRARY_PRIORITY = {library: index for index, library in enumerate(DEFAULT_LIBRARIES)}
 
 CHINESE_QUERY_EXPANSIONS = {
     "搜索": ["search", "find", "magnifier", "magnifying", "zoom"],
@@ -83,6 +132,7 @@ CHINESE_QUERY_EXPANSIONS = {
     "智能": ["ai", "bot", "sparkles", "wand", "brain"],
     "AI": ["ai", "bot", "sparkles", "wand", "brain"],
     "改写": ["rewrite", "edit", "pencil", "pen", "refresh", "file-pen"],
+    "扩写": ["rewrite", "edit", "pencil", "pen", "text", "text-plus", "text-increase", "file-plus", "file-pen", "writing"],
     "编辑": ["edit", "pencil", "pen", "compose"],
     "创作": ["create", "edit", "pencil", "sparkles"],
     "生成": ["generate", "sparkles", "wand", "plus"],
@@ -268,6 +318,8 @@ def svg_summary(svg: str | None) -> dict[str, Any]:
     stroke_values = re.findall(r'stroke=["\']([^"\']+)["\']', lower)
     has_fill = any(value.strip() not in {"none", "transparent"} for value in fill_values)
     has_stroke = any(value.strip() not in {"none", "transparent"} for value in stroke_values)
+    if node_count > 0 and not has_fill and not has_stroke and "fill=\"none\"" not in lower and "fill='none'" not in lower:
+        has_fill = True
     return {"nodeCount": node_count, "hasFill": has_fill, "hasStroke": has_stroke}
 
 
@@ -289,7 +341,7 @@ def score_candidate(query_terms: list[str], fields: list[str], library: str) -> 
         if term_lower in field_terms:
             score += 24
             matched.append(term_lower)
-        elif term_lower and term_lower in lower_text:
+        elif len(term_lower) >= 3 and term_lower in lower_text:
             score += 12
             matched.append(term_lower)
         else:
@@ -301,11 +353,43 @@ def score_candidate(query_terms: list[str], fields: list[str], library: str) -> 
     name = fields[0].lower() if fields else ""
     if name in query_terms:
         score += 40
-    if library in {"lucide", "tabler"}:
-        score += 4
-    elif library == "iconpark":
-        score += 2
+    if score > 0:
+        if library in {"lucide", "fluent", "tabler"}:
+            score += 4
+        elif library in {"material", "antd", "tdesign", "iconpark", "carbon"}:
+            score += 2
     return score, sorted(set(matched))
+
+
+def svg_file_candidate(
+    info: PackageInfo,
+    library: str,
+    svg_path: Path,
+    name: str,
+    *,
+    title: str | None = None,
+    category: str = "",
+    tags: list[str] | None = None,
+    include_svg: bool = False,
+    max_svg_chars: int = 2400,
+) -> dict[str, Any]:
+    svg = svg_path.read_text(encoding="utf-8") if include_svg and svg_path.exists() else None
+    tag_values = tags if tags is not None else split_terms(" ".join([name, title or "", category]))
+    return {
+        "library": library,
+        "package": info.package,
+        "version": info.version,
+        "license": info.license,
+        "name": name,
+        "title": title or name.replace("-", " ").replace("_", " "),
+        "category": category,
+        "tags": tag_values,
+        "sourcePath": str(svg_path),
+        "styleRisk": PACKAGE_SPECS[library]["risk"],
+        "usageNote": PACKAGE_SPECS[library]["note"],
+        "svg": compact_svg(svg, max_svg_chars) if svg else None,
+        "svgSummary": svg_summary(svg),
+    }
 
 
 def lucide_candidates(info: PackageInfo, include_svg: bool, max_svg_chars: int) -> list[dict[str, Any]]:
@@ -355,6 +439,124 @@ def tabler_candidates(info: PackageInfo, include_svg: bool, max_svg_chars: int) 
             "svg": compact_svg(svg, max_svg_chars) if svg else None,
             "svgSummary": svg_summary(svg),
         })
+    return candidates
+
+
+def material_candidates(info: PackageInfo, include_svg: bool, max_svg_chars: int) -> list[dict[str, Any]]:
+    candidates = []
+    icon_dir = info.root / "rounded"
+    if not icon_dir.exists():
+        icon_dir = info.root / "outlined"
+    for svg_path in sorted(icon_dir.glob("*.svg")):
+        name = svg_path.stem.replace("_", "-")
+        if name.endswith("-fill"):
+            continue
+        candidates.append(svg_file_candidate(
+            info,
+            "material",
+            svg_path,
+            name,
+            category=icon_dir.name,
+            include_svg=include_svg,
+            max_svg_chars=max_svg_chars,
+        ))
+    return candidates
+
+
+def fluent_candidates(info: PackageInfo, include_svg: bool, max_svg_chars: int) -> list[dict[str, Any]]:
+    icons_dir = info.root / "icons"
+    preferred_paths = sorted(icons_dir.glob("*_24_regular.svg"))
+    fallback_paths = sorted(icons_dir.glob("*_20_regular.svg")) if not preferred_paths else []
+    candidates = []
+    for svg_path in [*preferred_paths, *fallback_paths]:
+        name = re.sub(r"_(20|24)_regular$", "", svg_path.stem).replace("_", "-")
+        candidates.append(svg_file_candidate(
+            info,
+            "fluent",
+            svg_path,
+            name,
+            category="regular",
+            include_svg=include_svg,
+            max_svg_chars=max_svg_chars,
+        ))
+    return candidates
+
+
+def antd_candidates(info: PackageInfo, include_svg: bool, max_svg_chars: int) -> list[dict[str, Any]]:
+    icon_dir = info.root / "inline-svg" / "outlined"
+    candidates = []
+    for svg_path in sorted(icon_dir.glob("*.svg")):
+        name = svg_path.stem
+        candidates.append(svg_file_candidate(
+            info,
+            "antd",
+            svg_path,
+            name,
+            category="outlined",
+            include_svg=include_svg,
+            max_svg_chars=max_svg_chars,
+        ))
+    return candidates
+
+
+def tdesign_candidates(info: PackageInfo, include_svg: bool, max_svg_chars: int) -> list[dict[str, Any]]:
+    icon_dir = info.root / "src"
+    candidates = []
+    for svg_path in sorted(icon_dir.glob("*.svg")):
+        name = svg_path.stem
+        if name.endswith("-filled") or name.endswith("-fill"):
+            continue
+        candidates.append(svg_file_candidate(
+            info,
+            "tdesign",
+            svg_path,
+            name,
+            category="outline",
+            include_svg=include_svg,
+            max_svg_chars=max_svg_chars,
+        ))
+    return candidates
+
+
+def carbon_candidates(info: PackageInfo, include_svg: bool, max_svg_chars: int) -> list[dict[str, Any]]:
+    candidates = []
+    seen: set[str] = set()
+    for size in ["24", "32", "20", "16"]:
+        icon_dir = info.root / "svg" / size
+        if not icon_dir.exists():
+            continue
+        for svg_path in sorted(icon_dir.glob("*.svg")):
+            name = svg_path.stem.replace("--", "-")
+            if name in seen:
+                continue
+            seen.add(name)
+            candidates.append(svg_file_candidate(
+                info,
+                "carbon",
+                svg_path,
+                name,
+                category=size,
+                include_svg=include_svg,
+                max_svg_chars=max_svg_chars,
+            ))
+    return candidates
+
+
+def remix_candidates(info: PackageInfo, include_svg: bool, max_svg_chars: int) -> list[dict[str, Any]]:
+    icon_root = info.root / "icons"
+    candidates = []
+    for svg_path in sorted(icon_root.glob("*/*-line.svg")):
+        name = re.sub(r"-line$", "", svg_path.stem)
+        category = svg_path.parent.name
+        candidates.append(svg_file_candidate(
+            info,
+            "remix",
+            svg_path,
+            name,
+            category=category,
+            include_svg=include_svg,
+            max_svg_chars=max_svg_chars,
+        ))
     return candidates
 
 
@@ -490,10 +692,22 @@ def build_candidates(args: argparse.Namespace) -> list[dict[str, Any]]:
         info = ensure_package(library, refresh=args.refresh)
         if library == "lucide":
             candidates.extend(lucide_candidates(info, False, args.max_svg_chars))
+        elif library == "fluent":
+            candidates.extend(fluent_candidates(info, False, args.max_svg_chars))
+        elif library == "material":
+            candidates.extend(material_candidates(info, False, args.max_svg_chars))
         elif library == "tabler":
             candidates.extend(tabler_candidates(info, False, args.max_svg_chars))
+        elif library == "antd":
+            candidates.extend(antd_candidates(info, False, args.max_svg_chars))
+        elif library == "tdesign":
+            candidates.extend(tdesign_candidates(info, False, args.max_svg_chars))
+        elif library == "carbon":
+            candidates.extend(carbon_candidates(info, False, args.max_svg_chars))
         elif library == "phosphor":
             candidates.extend(phosphor_candidates(info, False, args.max_svg_chars, args.phosphor_weight))
+        elif library == "remix":
+            candidates.extend(remix_candidates(info, False, args.max_svg_chars))
         elif library == "iconpark":
             candidates.extend(iconpark_candidates(info, False, args.max_svg_chars))
     return candidates
@@ -538,7 +752,7 @@ def search(args: argparse.Namespace) -> dict[str, Any]:
         item["adaptationReminder"] = "Use as semantic reference only; redraw into Baijiahao native editable style."
         results.append(item)
 
-    results.sort(key=lambda item: (-item["score"], item["library"], item["name"]))
+    results.sort(key=lambda item: (-item["score"], SOURCE_LIBRARY_PRIORITY.get(item["library"], 999), item["name"]))
     if args.library_limit > 0:
         per_library: dict[str, int] = {}
         limited: list[dict[str, Any]] = []
@@ -569,7 +783,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--libraries",
         default=",".join(DEFAULT_LIBRARIES),
-        help="Comma-separated libraries: lucide,tabler,iconpark,phosphor,iconfont,all.",
+        help="Comma-separated libraries: lucide,fluent,material,tabler,antd,tdesign,iconpark,carbon,phosphor,remix,iconfont,all.",
     )
     parser.add_argument("--limit", type=int, default=12, help="Maximum total results.")
     parser.add_argument("--library-limit", type=int, default=4, help="Maximum results per library; 0 disables per-library cap.")

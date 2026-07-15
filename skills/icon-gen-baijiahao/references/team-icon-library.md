@@ -37,13 +37,16 @@ In normal skill execution, do not read this Figma file every time. Use the disti
 
 ```
 references/team-icon-index.json
+references/team-icon-shape-specs.json
 ```
 
-The Figma mature library is the upstream source. The offline index is the runtime semantic matching layer.
+The Figma mature library is the upstream source. The offline index is the runtime semantic matching layer. The offline shape notes are guardrails only; runtime geometry must come from Figma source extraction for exact mature-library reuse.
 
 Use runtime Figma lookup only when:
 
 - the offline index does not cover the requested concept
+- any exact mature-library standard preview/final reuse needs source extraction
+- the shape spec is marked `needs-source-verification`
 - the index has conflicting or ambiguous candidates
 - the user explicitly asks to inspect the mature library
 - the output must reuse or verify a specific source node
