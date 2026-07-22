@@ -1,10 +1,14 @@
 import { buildBatchFigmaNativeScript } from "@/lib/icon-contract/generate";
-import type { BatchFigmaWriteItem, BatchFigmaWriteRun, FigmaTarget, IconSpecContract, ProductionGate } from "@/lib/icon-contract/types";
+import type { BatchFigmaWriteItem, BatchFigmaWriteRun, FigmaTarget, ProductionGate } from "@/lib/icon-contract/types";
+import { getIconSpecContractError } from "@/lib/icon-contract/validate";
+import { getFigmaToken, saveFigmaToken } from "@/lib/auth/store";
 
 type BatchFigmaWriteRequest = {
   targetUrl?: string;
   token?: string;
   items?: BatchFigmaWriteItem[];
+  skillNames?: string;
+  skillId?: string;
 };
 
 type FigmaFileResponse = {
@@ -22,24 +26,6 @@ function parseFigmaTarget(input: string): FigmaTarget | undefined {
   return { url, fileKey, nodeId };
 }
 
-function validateSpec(spec: unknown): spec is IconSpecContract {
-  if (!spec || typeof spec !== "object") return false;
-  const candidate = spec as Partial<IconSpecContract>;
-
-  return Boolean(
-    candidate.meta?.name &&
-      candidate.meta?.size === 24 &&
-      candidate.meta?.style === "outline" &&
-      candidate.meta?.color_mode === "monochrome" &&
-      candidate.strokes?.color === "#0F1218" &&
-      candidate.strokes?.width === 2 &&
-      candidate.strokes?.cap === "round" &&
-      candidate.strokes?.join === "round" &&
-      Array.isArray(candidate.shapes) &&
-      candidate.shapes.length > 0,
-  );
-}
-
 function buildGates(items: BatchFigmaWriteItem[], warnings: string[]): ProductionGate[] {
   return [
     {
@@ -52,7 +38,7 @@ function buildGates(items: BatchFigmaWriteItem[], warnings: string[]): Productio
       id: "icon_spec",
       label: "Team Spec Gate",
       status: warnings.length ? "blocked" : "done",
-      detail: warnings.length ? "仍有图标未通过 24px / 2px / #0F1218 native spec。" : "所有图标已转换成团队 native-node 规格。",
+      detail: warnings.length ? "仍有图标未通过当前团队 native spec。" : "所有图标已转换成当前团队 native-node 规格。",
       evidence: warnings.join(" / ") || `${items.length} specs`,
     },
     {
@@ -117,15 +103,19 @@ export async function POST(request: Request) {
   }
 
   const items = rawItems.filter((item) => {
-    const valid = validateSpec(item.spec);
-    if (!valid) warnings.push(`${item.name || item.id} 不是有效团队 Icon Spec`);
-    if (valid && item.spec.validation.status !== "pass") warnings.push(`${item.name || item.id} 仍有规范警告`);
-    return valid;
+    const contractError = getIconSpecContractError(item.spec);
+    if (contractError) warnings.push(`${item.name || item.id}：${contractError}`);
+    if (!contractError && item.spec.validation.status !== "pass") warnings.push(`${item.name || item.id} 仍有规范警告`);
+    return !contractError;
   });
 
-  const verification = await verifyFigmaTarget(target, body.token?.trim() || process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN);
+  const submittedToken = body.token?.trim();
+  const storedToken = await getFigmaToken(request);
+  const token = submittedToken || storedToken || process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN;
+  if (submittedToken && submittedToken.length >= 20) await saveFigmaToken(request, submittedToken);
+  const verification = await verifyFigmaTarget(target, token);
   const script = warnings.length || !items.length ? "" : buildBatchFigmaNativeScript(items);
-  const jsonSpec = warnings.length || !items.length ? "" : `${JSON.stringify({ version: "icon-gen-promax.batch.v1", target, items }, null, 2)}\n`;
+  const jsonSpec = warnings.length || !items.length ? "" : `${JSON.stringify({ version: `${body.skillId || "icon-gen-promax"}.batch.v1`, skillNames: body.skillNames, target, items }, null, 2)}\n`;
   const gates = buildGates(items, warnings);
   const responseStatus: BatchFigmaWriteRun["status"] = warnings.length || !items.length ? "blocked" : "ready_for_figma";
 

@@ -1,5 +1,6 @@
 import type { BatchFigmaWriteItem, FigmaTarget } from "@/lib/icon-contract/types";
-import { createFigmaWriteJob, getLatestFigmaWriteJob, listFigmaWriteJobs, validateIconSpecContract } from "@/lib/figma-write-jobs/store";
+import { getIconSpecContractError } from "@/lib/icon-contract/validate";
+import { createFigmaWriteJob, getLatestFigmaWriteJob, listFigmaWriteJobs } from "@/lib/figma-write-jobs/store";
 
 type CreateFigmaWriteJobRequest = {
   batchRunId?: string;
@@ -65,10 +66,10 @@ export async function POST(request: Request) {
   const warnings: string[] = [];
 
   const validItems = items.filter((item) => {
-    const valid = validateIconSpecContract(item.spec);
-    if (!valid) warnings.push(`${item.name || item.id} 不是有效团队 Icon Spec`);
-    if (valid && item.spec.validation.status !== "pass") warnings.push(`${item.name || item.id} 仍有规范警告`);
-    return valid;
+    const contractError = getIconSpecContractError(item.spec);
+    if (contractError) warnings.push(`${item.name || item.id}：${contractError}`);
+    if (!contractError && item.spec.validation.status !== "pass") warnings.push(`${item.name || item.id} 仍有规范警告`);
+    return !contractError;
   });
 
   if (!validItems.length) {

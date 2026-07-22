@@ -9,19 +9,26 @@
     "lint": "node node_modules/eslint/bin/eslint.js"
   },
   "dependencies": {
+    "@ant-design/icons-svg": "^4.5.0",
+    "@carbon/icons": "^11.83.0",
+    "@fluentui/svg-icons": "^1.1.333",
     "@icon-park/svg": "^1.4.2",
+    "@material-symbols/svg-400": "^0.45.7",
     "@phosphor-icons/core": "^2.1.1",
     "@tabler/icons": "^3.44.0",
     "lucide-static": "^1.23.0",
     "next": "16.2.9",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "remixicon": "^4.9.1",
+    "tdesign-icons-svg": "^0.4.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "agent-browser": "^0.31.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",

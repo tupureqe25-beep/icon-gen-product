@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     fileName?: string;
     pageName?: string;
     listening?: boolean;
+    bridgeVersion?: string;
   };
 
   return withCors({
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
       fileName: body.fileName,
       pageName: body.pageName,
       listening: body.listening,
+      bridgeVersion: body.bridgeVersion,
     }),
   });
 }

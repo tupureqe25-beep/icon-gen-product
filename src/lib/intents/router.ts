@@ -18,7 +18,7 @@ export type IntentResult = {
 const approvalWords = ["通过", "可以", "ok", "approved", "确认", "就这个", "选这个", "写入figma", "画到figma"];
 const previewWords = ["选a", "选b", "选c", "方向a", "方向b", "方向c", "option a", "option b", "option c", "预览"];
 const reviseWords = ["改", "调整", "不对", "不像", "换一个", "太复杂", "太满", "不要", "revise", "wrong"];
-const drawWords = ["画到figma", "写入figma", "native", "节点", "组件", "draw", "figma"];
+const drawWords = ["画到figma", "写入figma", "native node", "原生节点", "draw to figma", "figma"];
 const specWords = ["规范是什么", "规则", "spec", "标准", "pro max", "promax", "平台风格"];
 const generationWords = ["找", "需要", "要一个", "生成", "做一个", "给我", "create", "generate", "icon", "图标"];
 const smallTalkWords = ["你好", "早上好", "晚上好", "good morning", "hello", "hi", "thanks", "谢谢", "再见"];
@@ -53,7 +53,7 @@ export function routeIntent(message: string): IntentResult {
       intent: "explain_spec",
       confidence: 0.8,
       query: trimmed,
-      response: "我会说明 icon-gen-promax 的固定漫画平台规范和四阶段门禁。",
+      response: "我会说明当前团队 skill 的固定规范、来源优先级和阶段门禁。",
     };
   }
 
@@ -80,7 +80,7 @@ export function routeIntent(message: string): IntentResult {
       intent: "generate_svg_preview",
       confidence: 0.78,
       query: trimmed,
-      response: "我会按你选择的语义方向生成 SVG Preview，供你确认后再进入 Spec & Draw。",
+      response: "我会按你选择的语义方向先检索真实来源；来源不合格时再进入 AI Preview 兜底。",
     };
   }
 
@@ -89,7 +89,7 @@ export function routeIntent(message: string): IntentResult {
       intent: "plan_semantics",
       confidence: 0.84,
       query: trimmed,
-      response: "我会先完成 Brief 判断，再给出 2–3 个漫画平台 24px outline 图标语义方向。",
+      response: "我会先完成 Brief 判断，再给出 2–3 个彼此不同的低保真语义方向。",
     };
   }
 

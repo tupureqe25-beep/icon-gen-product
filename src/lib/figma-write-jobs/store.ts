@@ -1,4 +1,4 @@
-import type { BatchFigmaWriteItem, FigmaTarget, FigmaWriteJob, FigmaWriteJobResult, FigmaWriteJobStatus, IconSpecContract } from "@/lib/icon-contract/types";
+import type { BatchFigmaWriteItem, FigmaTarget, FigmaWriteJob, FigmaWriteJobResult, FigmaWriteJobStatus } from "@/lib/icon-contract/types";
 
 type CreateJobInput = {
   origin: string;
@@ -20,6 +20,7 @@ type JobGlobal = typeof globalThis & {
 
 export type FigmaBridgeStatus = {
   online: boolean;
+  bridgeVersion?: string;
   lastSeenAt?: string;
   serverUrl?: string;
   fileName?: string;
@@ -36,24 +37,6 @@ function getStore() {
 
 function createId() {
   return `figma-job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-export function validateIconSpecContract(spec: unknown): spec is IconSpecContract {
-  if (!spec || typeof spec !== "object") return false;
-  const candidate = spec as Partial<IconSpecContract>;
-
-  return Boolean(
-    candidate.meta?.name &&
-      candidate.meta?.size === 24 &&
-      candidate.meta?.style === "outline" &&
-      candidate.meta?.color_mode === "monochrome" &&
-      candidate.strokes?.color === "#0F1218" &&
-      candidate.strokes?.width === 2 &&
-      candidate.strokes?.cap === "round" &&
-      candidate.strokes?.join === "round" &&
-      Array.isArray(candidate.shapes) &&
-      candidate.shapes.length > 0,
-  );
 }
 
 export function createFigmaWriteJob(input: CreateJobInput) {

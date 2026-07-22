@@ -3,6 +3,7 @@ import type { IconSpecContract, ProductionGate, ProductionRun } from "@/lib/icon
 
 type ProductionRunRequest = {
   spec?: IconSpecContract;
+  skillNames?: string;
 };
 
 function validateSpec(spec: unknown): spec is IconSpecContract {
@@ -11,20 +12,22 @@ function validateSpec(spec: unknown): spec is IconSpecContract {
 
   return Boolean(
     candidate.meta?.name &&
-      candidate.meta?.size === 24 &&
+      [24, 48].includes(candidate.meta?.size ?? 0) &&
       candidate.meta?.style === "outline" &&
       candidate.meta?.color_mode === "monochrome" &&
       candidate.meta?.preview_status === "approved" &&
-      candidate.strokes?.color === "#0F1218" &&
-      candidate.strokes?.width === 2 &&
+      ["#0F1218", "#242529"].includes(candidate.strokes?.color ?? "") &&
+      [2, 4].includes(candidate.strokes?.width ?? 0) &&
       candidate.strokes?.cap === "round" &&
       candidate.strokes?.join === "round" &&
+      (candidate.meta?.platform !== "baijiahao" || candidate.meta?.runtime_mode === "strict") &&
       Array.isArray(candidate.shapes) &&
       candidate.shapes.length > 0,
   );
 }
 
-function buildBlockedRun(reason: string, spec?: IconSpecContract): ProductionRun {
+function buildBlockedRun(reason: string, spec?: IconSpecContract, skillNames = "icon-gen-promax"): ProductionRun {
+  const specSummary = spec ? `${spec.meta.size}px / ${spec.strokes.color} / ${spec.strokes.width}px` : "当前团队规范";
   const gates: ProductionGate[] = [
     {
       id: "preview_approval",
@@ -61,7 +64,7 @@ function buildBlockedRun(reason: string, spec?: IconSpecContract): ProductionRun
     gates,
     figma: {
       runtime: "figma-use",
-      skillNames: "icon-gen-promax",
+      skillNames,
       executable: false,
       script: "",
       expectedRootName: spec?.meta.name ?? "",
@@ -72,8 +75,8 @@ function buildBlockedRun(reason: string, spec?: IconSpecContract): ProductionRun
       compareAgainst: "approved-svg-preview",
       checks: [
         "metaphor matches confirmed direction",
-        "24px component/frame remains editable native nodes",
-        "stroke is #0F1218 / 2px / round cap and join",
+        `${spec?.meta.size ?? 24}px component/frame remains editable native nodes`,
+        `stroke matches ${specSummary} with round cap and join`,
         "visual density and proportions match approved preview",
       ],
       failureBranches: [
@@ -86,7 +89,7 @@ function buildBlockedRun(reason: string, spec?: IconSpecContract): ProductionRun
   };
 }
 
-function buildReadyRun(spec: IconSpecContract): ProductionRun {
+function buildReadyRun(spec: IconSpecContract, skillNames = "icon-gen-promax"): ProductionRun {
   const script = buildFigmaNativeScript(spec);
 
   return {
@@ -114,7 +117,7 @@ function buildReadyRun(spec: IconSpecContract): ProductionRun {
         id: "figma_native_draw",
         label: "Phase 4B · Figma Native Draw",
         status: "waiting",
-        detail: "等待通过 figma-use 执行脚本。必须传 skillNames: icon-gen-promax。",
+        detail: `等待通过 figma-use 执行脚本。必须传 skillNames: ${skillNames}。`,
         evidence: "script generated; no SVG import/paste",
       },
       {
@@ -138,7 +141,7 @@ function buildReadyRun(spec: IconSpecContract): ProductionRun {
     ],
     figma: {
       runtime: "figma-use",
-      skillNames: "icon-gen-promax",
+      skillNames,
       executable: true,
       script,
       expectedRootName: spec.meta.name,
@@ -149,8 +152,8 @@ function buildReadyRun(spec: IconSpecContract): ProductionRun {
       compareAgainst: "approved-svg-preview",
       checks: [
         "metaphor matches confirmed direction",
-        "24px component/frame remains editable native nodes",
-        "stroke is #0F1218 / 2px / round cap and join",
+        `${spec.meta.size}px component/frame remains editable native nodes`,
+        `stroke is ${spec.strokes.color} / ${spec.strokes.width}px / round cap and join`,
         "no SVG string was pasted or imported",
         "local fills only exist for documented tiny readability exceptions",
         "visual density and proportions match approved preview",
@@ -167,17 +170,18 @@ function buildReadyRun(spec: IconSpecContract): ProductionRun {
 
 export async function POST(request: Request) {
   const body = (await request.json()) as ProductionRunRequest;
+  const skillNames = body.skillNames || "icon-gen-promax";
 
   if (!validateSpec(body.spec)) {
     return Response.json(
-      buildBlockedRun("需要 approved 的 24px / #0F1218 / 2px / round cap+join Icon Spec，且必须包含 native shapes。", body.spec),
+      buildBlockedRun("需要 approved 的团队 Icon Spec，且必须包含合法尺寸、颜色、线宽和 native shapes。", body.spec, skillNames),
       { status: 422 },
     );
   }
 
   if (body.spec.validation.status !== "pass") {
-    return Response.json(buildBlockedRun("当前 Spec 仍有规范警告，不能进入 Figma native draw。", body.spec), { status: 409 });
+    return Response.json(buildBlockedRun("当前 Spec 仍有规范警告，不能进入 Figma native draw。", body.spec, skillNames), { status: 409 });
   }
 
-  return Response.json(buildReadyRun(body.spec));
+  return Response.json(buildReadyRun(body.spec, skillNames));
 }

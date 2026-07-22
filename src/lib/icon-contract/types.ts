@@ -57,6 +57,10 @@ export type IconSpecContract = {
     corner_radius: "rounded";
     selected_direction: string;
     preview_status: "approved" | "waiting";
+    skill_id?: string;
+    platform?: string;
+    logical_size?: number;
+    runtime_mode?: "fast" | "strict" | "explore" | "maintenance";
     source?: {
       type: string;
       name: string;
@@ -80,6 +84,7 @@ export type IconSpecContract = {
   validation: {
     status: "pass" | "needs_review" | "blocked";
     warnings: string[];
+    manual_approved_warnings?: string[];
     output: string;
   };
 };
@@ -129,7 +134,7 @@ export type ProductionRun = {
   gates: ProductionGate[];
   figma: {
     runtime: "figma-use";
-    skillNames: "icon-gen-promax";
+    skillNames: string;
     executable: boolean;
     script: string;
     expectedRootName: string;

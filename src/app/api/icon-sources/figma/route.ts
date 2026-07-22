@@ -1,4 +1,5 @@
 import type { IconAsset } from "@/lib/icons/types";
+import { getFigmaToken, saveFigmaToken } from "@/lib/auth/store";
 
 type FigmaUrlTarget = {
   fileKey: string;
@@ -48,8 +49,9 @@ function nodeLooksLikeIcon(node: FigmaNode) {
   const likelyName = /icon|图标|ico|aijbasic|basic|24/.test(name);
   const likelySize = Boolean(box && box.width >= 12 && box.height >= 12 && box.width <= 80 && box.height <= 80);
   const likelyType = ["COMPONENT", "INSTANCE", "FRAME", "GROUP", "VECTOR", "BOOLEAN_OPERATION"].includes(node.type);
+  const genericLayerName = /^(rectangle|vector|group|frame|ellipse|line|polygon|boolean)(?:\s+\d+)?$/i.test(node.name.trim());
 
-  return likelyType && (likelyName || likelySize);
+  return likelyType && !genericLayerName && (likelyName || likelySize);
 }
 
 function collectIconNodes(root: FigmaNode, limit = 48) {
@@ -64,6 +66,7 @@ function collectIconNodes(root: FigmaNode, limit = 48) {
 
     if (nodeLooksLikeIcon(node)) {
       result.push(node);
+      continue;
     }
 
     node.children?.forEach((child) => queue.push(child));
@@ -92,11 +95,14 @@ export async function POST(request: Request) {
     return Response.json({ message: "请提供有效的 Figma design/file URL，最好带 node-id。" }, { status: 400 });
   }
 
-  const token = body.token?.trim() || process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN;
+  const submittedToken = body.token?.trim();
+  const storedToken = await getFigmaToken(request);
+  const token = submittedToken || storedToken || process.env.FIGMA_ACCESS_TOKEN || process.env.FIGMA_TOKEN;
+  if (submittedToken && submittedToken.length >= 20) await saveFigmaToken(request, submittedToken);
   if (!token) {
     return Response.json(
       {
-        message: "当前项目还没有配置 FIGMA_ACCESS_TOKEN，无法直接读取 Figma 画布。可以先导出 SVG 粘贴，或在 .env.local 配置 Figma Token 后重启服务。",
+        message: "当前没有可用的 Figma Token。请先登录并填写 Token，或在 .env.local 配置 FIGMA_ACCESS_TOKEN。",
         requiresToken: true,
         source: "figma-canvas",
         assets: [],

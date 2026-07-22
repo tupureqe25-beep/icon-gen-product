@@ -1,7 +1,6 @@
 figma.showUI(__html__, { width: 360, height: 360, themeColors: true });
 
-const ICON_COLOR = { r: 15 / 255, g: 18 / 255, b: 24 / 255 };
-const ICON_STROKE = { type: "SOLID", color: ICON_COLOR };
+const BRIDGE_VERSION = "2.0";
 let activeAutoJobId = "";
 let currentServerUrl = "http://localhost:3000";
 let autoListening = true;
@@ -10,9 +9,41 @@ function postStatus(message) {
   figma.ui.postMessage({ type: "status", message });
 }
 
-function applyIconStroke(node, weight = 2) {
+function formatError(error) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    if (typeof error.message === "string") return error.message;
+    if (typeof error.description === "string") return error.description;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "Figma 返回了无法序列化的错误对象";
+    }
+  }
+  return String(error);
+}
+
+function colorPaint(spec, colorOverride) {
+  const hex = String(colorOverride || spec.strokes?.color || "#0F1218").replace("#", "");
+  const value = hex.length === 3 ? hex.split("").map((part) => part + part).join("") : hex.padEnd(6, "0").slice(0, 6);
+  return {
+    type: "SOLID",
+    color: {
+      r: parseInt(value.slice(0, 2), 16) / 255,
+      g: parseInt(value.slice(2, 4), 16) / 255,
+      b: parseInt(value.slice(4, 6), 16) / 255,
+    },
+  };
+}
+
+function metadataNamespace(spec) {
+  return String(spec.meta?.skill_id || "icon_gen").replace(/[^a-zA-Z0-9_]/g, "_");
+}
+
+function applyIconStroke(node, spec, weight = spec.strokes.width) {
   node.fills = [];
-  node.strokes = [ICON_STROKE];
+  node.strokes = [colorPaint(spec)];
   node.strokeWeight = weight;
   node.strokeAlign = "CENTER";
   if ("strokeCap" in node) node.strokeCap = "ROUND";
@@ -20,34 +51,34 @@ function applyIconStroke(node, weight = 2) {
   if ("effects" in node) node.effects = [];
 }
 
-function applyLocalTinyFill(node, reason, primitiveStats) {
-  node.fills = [ICON_STROKE];
+function applyLocalTinyFill(node, spec, color, reason, primitiveStats) {
+  node.fills = [colorPaint(spec, color)];
   node.strokes = [];
   if ("effects" in node) node.effects = [];
   if ("setSharedPluginData" in node) {
-    node.setSharedPluginData("icon_gen_promax", "fillExceptionReason", reason || "local tiny fill for clarity");
+    node.setSharedPluginData(metadataNamespace(spec), "fillExceptionReason", reason || "local tiny fill for clarity");
   }
   primitiveStats.tinyFill += 1;
 }
 
-function applyShapeMetadata(node, shape) {
+function applyShapeMetadata(node, spec, shape) {
   node.name = shape.name || shape.id;
   if ("setSharedPluginData" in node) {
-    node.setSharedPluginData("icon_gen_promax", "shapeId", shape.id || "");
-    node.setSharedPluginData("icon_gen_promax", "shapeRole", shape.role || "");
+    node.setSharedPluginData(metadataNamespace(spec), "shapeId", shape.id || "");
+    node.setSharedPluginData(metadataNamespace(spec), "shapeRole", shape.role || "");
   }
 }
 
 function drawLine(root, spec, shape, suffix, createdNodeIds, primitiveStats) {
   const node = figma.createLine();
   root.appendChild(node);
-  applyShapeMetadata(node, { ...shape, name: suffix ? `${shape.name || shape.id} ${suffix}` : shape.name });
+  applyShapeMetadata(node, spec, { ...shape, name: suffix ? `${shape.name || shape.id} ${suffix}` : shape.name });
   node.name = suffix ? `${shape.id}__${suffix}` : node.name;
   node.x = shape.x1;
   node.y = shape.y1;
   node.resize(Math.hypot(shape.x2 - shape.x1, shape.y2 - shape.y1), 0);
   node.rotation = (Math.atan2(shape.y2 - shape.y1, shape.x2 - shape.x1) * 180) / Math.PI;
-  applyIconStroke(node, shape.strokeWeight || spec.strokes.width);
+  applyIconStroke(node, spec, shape.strokeWeight || spec.strokes.width);
   createdNodeIds.push(node.id);
   primitiveStats.line += 1;
   return node;
@@ -57,12 +88,12 @@ function drawShape(root, spec, shape, createdNodeIds, primitiveStats) {
   if (shape.type === "rect") {
     const node = figma.createRectangle();
     root.appendChild(node);
-    applyShapeMetadata(node, shape);
+    applyShapeMetadata(node, spec, shape);
     node.x = shape.x;
     node.y = shape.y;
     node.resize(shape.width, shape.height);
     node.cornerRadius = typeof shape.radius === "number" ? shape.radius : 4;
-    applyIconStroke(node, shape.strokeWeight || spec.strokes.width);
+    applyIconStroke(node, spec, shape.strokeWeight || spec.strokes.width);
     createdNodeIds.push(node.id);
     primitiveStats.rectangle += 1;
     return [node];
@@ -71,9 +102,9 @@ function drawShape(root, spec, shape, createdNodeIds, primitiveStats) {
   if (shape.type === "path") {
     const node = figma.createVector();
     root.appendChild(node);
-    applyShapeMetadata(node, shape);
+    applyShapeMetadata(node, spec, shape);
     node.vectorPaths = [{ windingRule: "NONZERO", data: shape.data }];
-    applyIconStroke(node, shape.strokeWeight || spec.strokes.width);
+    applyIconStroke(node, spec, shape.strokeWeight || spec.strokes.width);
     createdNodeIds.push(node.id);
     primitiveStats.vector += 1;
     return [node];
@@ -109,14 +140,14 @@ function drawShape(root, spec, shape, createdNodeIds, primitiveStats) {
   if (shape.type === "circle") {
     const node = figma.createEllipse();
     root.appendChild(node);
-    applyShapeMetadata(node, shape);
+    applyShapeMetadata(node, spec, shape);
     node.x = shape.x;
     node.y = shape.y;
     node.resize(shape.width, shape.height);
     if (shape.fill && shape.fillExceptionReason) {
-      applyLocalTinyFill(node, shape.fillExceptionReason, primitiveStats);
+      applyLocalTinyFill(node, spec, shape.fill, shape.fillExceptionReason, primitiveStats);
     } else {
-      applyIconStroke(node, shape.strokeWeight || spec.strokes.width);
+      applyIconStroke(node, spec, shape.strokeWeight || spec.strokes.width);
     }
     createdNodeIds.push(node.id);
     primitiveStats.ellipse += 1;
@@ -126,26 +157,34 @@ function drawShape(root, spec, shape, createdNodeIds, primitiveStats) {
   throw new Error(`Unsupported shape type: ${shape.type}`);
 }
 
-function validateSpec(spec) {
-  return Boolean(
-    spec &&
-      spec.meta &&
-      spec.meta.size === 24 &&
-      spec.meta.style === "outline" &&
-      spec.meta.color_mode === "monochrome" &&
-      spec.strokes &&
-      spec.strokes.color === "#0F1218" &&
-      spec.strokes.width === 2 &&
-      spec.strokes.cap === "round" &&
-      spec.strokes.join === "round" &&
-      Array.isArray(spec.shapes) &&
-      spec.shapes.length,
-  );
+function getSpecValidationError(spec) {
+  if (!spec || typeof spec !== "object") return "规格不是对象";
+
+  const size = spec.meta?.size;
+  const color = spec.strokes?.color;
+  const width = spec.strokes?.width;
+  const platform = spec.meta?.platform;
+
+  if (!spec.meta?.name) return "缺少图标名称";
+  if (![24, 48].includes(size)) return `不支持 ${String(size)}px 画布`;
+  if (spec.meta.style !== "outline" || spec.meta.color_mode !== "monochrome") return "必须是 outline monochrome 规格";
+  if (!["#0F1218", "#242529"].includes(color)) return `描边颜色 ${String(color)} 不符合团队规格`;
+  if (![2, 4].includes(width)) return `描边宽度 ${String(width)}px 不符合团队规格`;
+  if (spec.strokes.cap !== "round" || spec.strokes.join !== "round") return "描边端点和连接必须是 round";
+
+  const isBaijiahao = platform === "baijiahao" || size === 48 || color === "#242529" || width === 4;
+  if (isBaijiahao && (size !== 48 || color !== "#242529" || width !== 4)) return "百家号规格必须是 48px / #242529 / 4px";
+  if (isBaijiahao && spec.meta.runtime_mode !== "strict") return "百家号正式写入必须使用 strict 模式";
+  if (!isBaijiahao && (size !== 24 || color !== "#0F1218" || width !== 2)) return "漫剧/默认规格必须是 24px / #0F1218 / 2px";
+  if (!Array.isArray(spec.shapes) || !spec.shapes.length) return "没有可写入的 native shapes";
+
+  return "";
 }
 
 function drawIcon(item, index, createdNodeIds, primitiveStats) {
   const spec = item.spec;
-  if (!validateSpec(spec)) throw new Error(`${item.name || item.id} 不是有效 icon-gen-promax Icon Spec`);
+  const validationError = getSpecValidationError(spec);
+  if (validationError) throw new Error(`${item.name || item.id}：${validationError}`);
 
   const root = figma.createComponent();
   try {
@@ -157,9 +196,9 @@ function drawIcon(item, index, createdNodeIds, primitiveStats) {
     root.x = item.position?.x ?? index * 48;
     root.y = item.position?.y ?? 0;
     if ("setSharedPluginData" in root) {
-      root.setSharedPluginData("icon_gen_promax", "sourceName", item.sourceName || "batch");
-      root.setSharedPluginData("icon_gen_promax", "batchItemId", item.id || "");
-      root.setSharedPluginData("icon_gen_promax", "jsonContract", JSON.stringify(spec));
+      root.setSharedPluginData(metadataNamespace(spec), "sourceName", item.sourceName || "batch");
+      root.setSharedPluginData(metadataNamespace(spec), "batchItemId", item.id || "");
+      root.setSharedPluginData(metadataNamespace(spec), "jsonContract", JSON.stringify(spec));
     }
     createdNodeIds.push(root.id);
 
@@ -186,7 +225,7 @@ async function fetchJson(url, options) {
   const response = await fetch(url, options);
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.message || `请求失败：${response.status}`);
+    throw new Error(payload.message ? formatError(payload.message) : `请求失败：${response.status}`);
   }
   return payload;
 }
@@ -200,6 +239,7 @@ async function sendBridgeHeartbeat(serverUrl, listening) {
       fileName: figma.root.name,
       pageName: figma.currentPage.name,
       listening,
+      bridgeVersion: BRIDGE_VERSION,
     }),
   });
 }
@@ -230,7 +270,7 @@ async function writeJob(serverUrl, jobId) {
     } catch (error) {
       errors.push({
         item: job.items[index]?.name || index,
-        message: error instanceof Error ? error.message : String(error),
+        message: formatError(error),
       });
     }
   }
@@ -296,8 +336,12 @@ figma.ui.onmessage = async (message) => {
         postStatus(`${result.message}\n\nRoot IDs:\n${result.rootIds.join("\n") || "-"}`);
         figma.notify(result.message);
       }
-    } catch {
-      // No queued job is normal while listening.
+    } catch (error) {
+      const messageText = formatError(error);
+      if (!messageText.includes("当前没有等待写入")) {
+        postStatus(`自动写入失败：${messageText}`);
+        figma.notify(`IconOps 自动写入失败：${messageText}`, { error: true });
+      }
     }
     return;
   }
@@ -312,7 +356,7 @@ figma.ui.onmessage = async (message) => {
     postStatus(`${result.message}\n\nRoot IDs:\n${result.rootIds.join("\n") || "-"}`);
     figma.notify(result.message);
   } catch (error) {
-    const messageText = error instanceof Error ? error.message : String(error);
+    const messageText = formatError(error);
     postStatus(`写入失败：${messageText}`);
     figma.notify(`IconOps 写入失败：${messageText}`, { error: true });
   }

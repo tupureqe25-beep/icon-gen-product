@@ -1,9 +1,62 @@
 import type { BatchFigmaWriteItem, DeliverableFile, DeliveryPackage, IconSpecContract, NativeShapeContract } from "./types";
+import { normalizeSvgPathForFigma } from "@/lib/icons/path-normalize";
+
+function formatScaledNumber(value: number) {
+  const rounded = Math.round(value * 1000) / 1000;
+  return String(rounded).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+}
+
+function scalePathData(data: string, scale: number) {
+  if (scale === 1) return data;
+  const normalized = normalizeSvgPathForFigma(data);
+  const scalableData = normalized.data ?? data;
+  if (!normalized.data && /[AaHhQqSsTtVv]/.test(data)) return data;
+  return scalableData.replace(/[-+]?(?:(?:\d*\.\d+)|(?:\d+\.?))(?:[eE][-+]?\d+)?/g, (value) =>
+    formatScaledNumber(Number(value) * scale),
+  );
+}
+
+export function scaleNativeShapes(shapes: NativeShapeContract[], scale: number): NativeShapeContract[] {
+  if (scale === 1) return shapes;
+  return shapes.map((shape) => {
+    if (shape.type === "path") return { ...shape, data: scalePathData(shape.data, scale), strokeWeight: shape.strokeWeight * scale };
+    if (shape.type === "line") {
+      return {
+        ...shape,
+        x1: shape.x1 * scale,
+        y1: shape.y1 * scale,
+        x2: shape.x2 * scale,
+        y2: shape.y2 * scale,
+        strokeWeight: shape.strokeWeight * scale,
+      };
+    }
+    if (shape.type === "rect") {
+      return {
+        ...shape,
+        x: shape.x * scale,
+        y: shape.y * scale,
+        width: shape.width * scale,
+        height: shape.height * scale,
+        radius: shape.radius === undefined ? undefined : shape.radius * scale,
+        strokeWeight: shape.strokeWeight * scale,
+      };
+    }
+    return {
+      ...shape,
+      x: shape.x * scale,
+      y: shape.y * scale,
+      width: shape.width * scale,
+      height: shape.height * scale,
+      strokeWeight: shape.strokeWeight === undefined ? undefined : shape.strokeWeight * scale,
+    };
+  });
+}
 
 function toKebabCase(value: string) {
   return (
     value
       .replace(/^AijBasic/, "")
+      .replace(/^BjhBasic/, "")
       .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
       .replace(/[\s_]+/g, "-")
       .toLowerCase()
@@ -59,13 +112,13 @@ export function buildPreviewSvg(spec: IconSpecContract) {
   const strokeColor = spec.strokes.color;
   const body = spec.shapes.map((shape) => shapeToSvg(shape, strokeColor)).filter(Boolean).join("\n  ");
 
-  return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">\n  ${body}\n</svg>`;
+  return `<svg width="${spec.meta.size}" height="${spec.meta.size}" viewBox="0 0 ${spec.meta.size} ${spec.meta.size}" fill="none" xmlns="http://www.w3.org/2000/svg">\n  ${body}\n</svg>`;
 }
 
 export function buildReactComponent(spec: IconSpecContract, svg: string) {
   const innerSvg = svg.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "").trim();
 
-  return `import type { SVGProps } from "react";\n\nexport function ${spec.meta.name}(props: SVGProps<SVGSVGElement>) {\n  return (\n    <svg\n      width="24"\n      height="24"\n      viewBox="0 0 24 24"\n      fill="none"\n      xmlns="http://www.w3.org/2000/svg"\n      aria-hidden="true"\n      {...props}\n    >\n      ${innerSvg
+  return `import type { SVGProps } from "react";\n\nexport function ${spec.meta.name}(props: SVGProps<SVGSVGElement>) {\n  return (\n    <svg\n      width="${spec.meta.size}"\n      height="${spec.meta.size}"\n      viewBox="0 0 ${spec.meta.size} ${spec.meta.size}"\n      fill="none"\n      xmlns="http://www.w3.org/2000/svg"\n      aria-hidden="true"\n      {...props}\n    >\n      ${innerSvg
         .replace(/stroke-width=/g, "strokeWidth=")
         .replace(/stroke-linecap=/g, "strokeLinecap=")
         .replace(/stroke-linejoin=/g, "strokeLinejoin=")}\n    </svg>\n  );\n}\n`;
@@ -73,15 +126,30 @@ export function buildReactComponent(spec: IconSpecContract, svg: string) {
 
 function buildFigmaRunner(itemsExpression: string) {
   return `const batchItems = ${itemsExpression};
-const ICON_COLOR = { r: 15 / 255, g: 18 / 255, b: 24 / 255 };
-const ICON_STROKE = { type: "SOLID", color: ICON_COLOR };
 const createdNodeIds = [];
 const errors = [];
 const primitiveStats = { rectangle: 0, ellipse: 0, line: 0, vector: 0, tinyFill: 0 };
 
-function applyIconStroke(node, weight = 2) {
+function colorPaint(spec) {
+  const hex = String(spec.strokes?.color || "#0F1218").replace("#", "");
+  const value = hex.length === 3 ? hex.split("").map((part) => part + part).join("") : hex.padEnd(6, "0").slice(0, 6);
+  return {
+    type: "SOLID",
+    color: {
+      r: parseInt(value.slice(0, 2), 16) / 255,
+      g: parseInt(value.slice(2, 4), 16) / 255,
+      b: parseInt(value.slice(4, 6), 16) / 255,
+    },
+  };
+}
+
+function metadataNamespace(spec) {
+  return String(spec.meta?.skill_id || "icon_gen").replace(/[^a-zA-Z0-9_]/g, "_");
+}
+
+function applyIconStroke(node, spec, weight = spec.strokes.width) {
   node.fills = [];
-  node.strokes = [ICON_STROKE];
+  node.strokes = [colorPaint(spec)];
   node.strokeWeight = weight;
   node.strokeAlign = "CENTER";
   if ("strokeCap" in node) node.strokeCap = "ROUND";
@@ -89,34 +157,34 @@ function applyIconStroke(node, weight = 2) {
   if ("effects" in node) node.effects = [];
 }
 
-function applyLocalTinyFill(node, reason) {
-  node.fills = [ICON_STROKE];
+function applyLocalTinyFill(node, spec, reason) {
+  node.fills = [colorPaint(spec)];
   node.strokes = [];
   if ("effects" in node) node.effects = [];
   if ("setSharedPluginData" in node) {
-    node.setSharedPluginData("icon_gen_promax", "fillExceptionReason", reason || "local tiny fill for clarity");
+    node.setSharedPluginData(metadataNamespace(spec), "fillExceptionReason", reason || "local tiny fill for clarity");
   }
   primitiveStats.tinyFill += 1;
 }
 
-function applyShapeMetadata(node, shape) {
+function applyShapeMetadata(node, spec, shape) {
   node.name = shape.name || shape.id;
   if ("setSharedPluginData" in node) {
-    node.setSharedPluginData("icon_gen_promax", "shapeId", shape.id || "");
-    node.setSharedPluginData("icon_gen_promax", "shapeRole", shape.role || "");
+    node.setSharedPluginData(metadataNamespace(spec), "shapeId", shape.id || "");
+    node.setSharedPluginData(metadataNamespace(spec), "shapeRole", shape.role || "");
   }
 }
 
 function drawLine(root, spec, shape, suffix = "") {
   const node = figma.createLine();
   root.appendChild(node);
-  applyShapeMetadata(node, { ...shape, name: suffix ? \`\${shape.name || shape.id} \${suffix}\` : shape.name });
+  applyShapeMetadata(node, spec, { ...shape, name: suffix ? \`\${shape.name || shape.id} \${suffix}\` : shape.name });
   node.name = suffix ? \`\${shape.id}__\${suffix}\` : node.name;
   node.x = shape.x1;
   node.y = shape.y1;
   node.resize(Math.hypot(shape.x2 - shape.x1, shape.y2 - shape.y1), 0);
   node.rotation = Math.atan2(shape.y2 - shape.y1, shape.x2 - shape.x1) * 180 / Math.PI;
-  applyIconStroke(node, shape.strokeWeight || spec.strokes.width);
+  applyIconStroke(node, spec, shape.strokeWeight || spec.strokes.width);
   createdNodeIds.push(node.id);
   primitiveStats.line += 1;
   return node;
@@ -126,12 +194,12 @@ function drawShape(root, spec, shape) {
   if (shape.type === "rect") {
     const node = figma.createRectangle();
     root.appendChild(node);
-    applyShapeMetadata(node, shape);
+    applyShapeMetadata(node, spec, shape);
     node.x = shape.x;
     node.y = shape.y;
     node.resize(shape.width, shape.height);
     node.cornerRadius = typeof shape.radius === "number" ? shape.radius : 4;
-    applyIconStroke(node, shape.strokeWeight || spec.strokes.width);
+    applyIconStroke(node, spec, shape.strokeWeight || spec.strokes.width);
     createdNodeIds.push(node.id);
     primitiveStats.rectangle += 1;
     return [node];
@@ -140,9 +208,9 @@ function drawShape(root, spec, shape) {
   if (shape.type === "path") {
     const node = figma.createVector();
     root.appendChild(node);
-    applyShapeMetadata(node, shape);
+    applyShapeMetadata(node, spec, shape);
     node.vectorPaths = [{ windingRule: "NONZERO", data: shape.data }];
-    applyIconStroke(node, shape.strokeWeight || spec.strokes.width);
+    applyIconStroke(node, spec, shape.strokeWeight || spec.strokes.width);
     createdNodeIds.push(node.id);
     primitiveStats.vector += 1;
     return [node];
@@ -176,14 +244,14 @@ function drawShape(root, spec, shape) {
   if (shape.type === "circle") {
     const node = figma.createEllipse();
     root.appendChild(node);
-    applyShapeMetadata(node, shape);
+    applyShapeMetadata(node, spec, shape);
     node.x = shape.x;
     node.y = shape.y;
     node.resize(shape.width, shape.height);
     if (shape.fill && shape.fillExceptionReason) {
-      applyLocalTinyFill(node, shape.fillExceptionReason);
+      applyLocalTinyFill(node, spec, shape.fillExceptionReason);
     } else {
-      applyIconStroke(node, shape.strokeWeight || spec.strokes.width);
+      applyIconStroke(node, spec, shape.strokeWeight || spec.strokes.width);
     }
     createdNodeIds.push(node.id);
     primitiveStats.ellipse += 1;
@@ -205,9 +273,9 @@ function drawIcon(item, index) {
     root.x = item.position?.x ?? index * 48;
     root.y = item.position?.y ?? 0;
     if ("setSharedPluginData" in root) {
-      root.setSharedPluginData("icon_gen_promax", "sourceName", item.sourceName || "batch");
-      root.setSharedPluginData("icon_gen_promax", "batchItemId", item.id || "");
-      root.setSharedPluginData("icon_gen_promax", "jsonContract", JSON.stringify(spec));
+      root.setSharedPluginData(metadataNamespace(spec), "sourceName", item.sourceName || "batch");
+      root.setSharedPluginData(metadataNamespace(spec), "batchItemId", item.id || "");
+      root.setSharedPluginData(metadataNamespace(spec), "jsonContract", JSON.stringify(spec));
     }
     createdNodeIds.push(root.id);
 
@@ -245,7 +313,7 @@ return {
   createdNodeIds,
   primitiveStats,
   errors,
-  output: "editable Figma native nodes from icon-gen-promax JSON contract; SVG was not imported",
+  output: "editable Figma native nodes from the selected team-skill JSON contract; SVG was not imported",
   nextGate: "capture screenshots and compare each generated component against approved previews",
 };`;
 }
@@ -259,14 +327,14 @@ export function buildFigmaNativeScript(spec: IconSpecContract) {
     spec,
   };
 
-  return `// icon-gen-promax Phase 4B JSON draw runner
-// Run through figma-use / use_figma with skillNames: "icon-gen-promax".
+  return `// ${spec.meta.skill_id || "team-icon"} Phase 4B JSON draw runner
+// Run through figma-use / use_figma with the selected skillNames.
 // This creates editable Figma native nodes from Icon Spec JSON. It does not paste/import SVG.
 ${buildFigmaRunner(JSON.stringify([item], null, 2))}`;
 }
 
 export function buildBatchFigmaNativeScript(items: BatchFigmaWriteItem[]) {
-  return `// icon-gen-promax batch JSON draw runner
+  return `// team icon batch JSON draw runner
 // Input contract: icon-spec-batch.json generated by IconOps.
 // Run inside Figma Plugin API / Codex figma-use. This creates editable native nodes only; no SVG paste/import.
 ${buildFigmaRunner(JSON.stringify(items, null, 2))}`;

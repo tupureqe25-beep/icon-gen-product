@@ -1,8 +1,12 @@
 import { routeIntent, type IconIntent } from "@/lib/intents/router";
 import type { AgentAction, AgentDecision } from "@/lib/agent/types";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { resolveTeamSpecSkill } from "@/lib/team-spec-skills";
 
 type AgentRequest = {
   message?: string;
+  activeSkillId?: string;
   history?: Array<{
     role: "user" | "assistant";
     content: string;
@@ -18,6 +22,11 @@ type AgentRequest = {
       category: string;
       tags: string[];
     }>;
+    teamSpecLibrary?: {
+      id: string;
+      name: string;
+      skillName: string;
+    };
   };
 };
 
@@ -42,8 +51,39 @@ const allowedIntents = new Set<IconIntent>([
   "unknown",
 ]);
 
+const maxSkillPromptChars = 18000;
+const modelRequestTimeoutMs = 20000;
+
+async function loadTeamSpecSkillPrompt(skillId?: string) {
+  const skill = resolveTeamSpecSkill(skillId);
+  if (!skill.skillPath) {
+    return {
+      skill,
+      content: "",
+      loaded: false,
+    };
+  }
+
+  try {
+    const absolutePath = path.join(process.cwd(), skill.skillPath);
+    const content = await readFile(absolutePath, "utf8");
+    return {
+      skill,
+      content: content.slice(0, maxSkillPromptChars),
+      loaded: true,
+    };
+  } catch {
+    return {
+      skill,
+      content: "",
+      loaded: false,
+    };
+  }
+}
+
 function buildActions(intent: IconIntent, context: AgentRequest["context"] = {}): AgentAction[] {
   const hasPreview = Boolean(context.selectedName);
+  const activeSkillName = context.teamSpecLibrary?.skillName ?? "当前团队规范 skill";
 
   if (intent === "brief_icon" || intent === "unknown") {
     return [
@@ -73,7 +113,7 @@ function buildActions(intent: IconIntent, context: AgentRequest["context"] = {})
       {
         id: "semantic_plan",
         label: "Phase 2 · Semantic Plan",
-        detail: "输出 2–3 个漫画平台 outline 语义方向，等待用户选择。",
+        detail: "输出 2–3 个彼此不同的低保真语义方向，等待用户选择。",
         status: "running",
       },
       {
@@ -96,7 +136,7 @@ function buildActions(intent: IconIntent, context: AgentRequest["context"] = {})
       {
         id: "svg_preview",
         label: "Phase 3 · SVG Preview",
-        detail: "生成 24px、#0F1218、2px stroke、rounded outline 预览。",
+        detail: "先检索真实外部来源；仅在来源不合格时进入当前 skill 的 AI 预览兜底。",
         status: "running",
       },
       {
@@ -158,8 +198,8 @@ function buildActions(intent: IconIntent, context: AgentRequest["context"] = {})
     return [
       {
         id: "explain_spec",
-        label: "读取 icon-gen-promax",
-        detail: "解释固定漫画平台风格、四阶段门禁和 Figma-native 交付边界。",
+        label: `读取 ${activeSkillName}`,
+        detail: "解释当前团队规范、来源优先级、阶段门禁和 Figma-native 交付边界。",
         status: "done",
       },
     ];
@@ -203,8 +243,12 @@ function fallbackDecision(
   message: string,
   reason?: string,
   context?: AgentRequest["context"],
+  history?: AgentRequest["history"],
 ): AgentDecision {
-  const routed = routeIntent(message);
+  const isBriefContinuation = /用于|用在|出现在|放在|位置|工具栏|内容列表|数据报表|批量操作|强调|表达|突出|普通下载|下载文件|导出数据/.test(message);
+  const previousUserMessage = history?.findLast((item) => item.role === "user")?.content;
+  const contextualMessage = isBriefContinuation && previousUserMessage ? `${previousUserMessage}；${message}` : message;
+  const routed = routeIntent(contextualMessage);
 
   return {
     mode: "fallback",
@@ -247,7 +291,7 @@ function resolveModelConfig(): { config?: ModelConfig; reason?: string } {
   if (!apiKey || !model) {
     return {
       reason:
-        "当前未配置 OPENAI_API_KEY / OPENAI_MODEL，正在使用本地 icon-gen-promax fallback；它会模拟阶段门禁，但不是真模型推理。",
+        "当前未配置 OPENAI_API_KEY / OPENAI_MODEL，正在使用本地规则 fallback；它会执行阶段门禁，但不是真模型推理。",
     };
   }
 
@@ -332,7 +376,12 @@ function parseDecision(text: string, fallback: AgentDecision): AgentDecision {
             return {
               id,
               title: typeof option.title === "string" ? option.title : fallback.semanticOptions?.[index]?.title ?? `方向 ${index + 1}`,
-              elements: typeof option.elements === "string" ? option.elements : fallback.semanticOptions?.[index]?.elements ?? "",
+              elements:
+                typeof option.elements === "string" && option.elements.trim()
+                  ? option.elements
+                  : typeof option.meaning === "string"
+                    ? option.meaning
+                    : fallback.semanticOptions?.[index]?.elements ?? "",
               meaning: typeof option.meaning === "string" ? option.meaning : fallback.semanticOptions?.[index]?.meaning ?? "",
               risk: typeof option.risk === "string" ? option.risk : fallback.semanticOptions?.[index]?.risk ?? "",
               previewGlyphKind: typeof option.previewGlyphKind === "string" ? option.previewGlyphKind : fallback.semanticOptions?.[index]?.previewGlyphKind,
@@ -386,6 +435,7 @@ async function callModel(config: ModelConfig, system: string, userPayload: unkno
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(modelRequestTimeoutMs),
   });
 
   if (!response.ok) {
@@ -405,22 +455,28 @@ async function callModel(config: ModelConfig, system: string, userPayload: unkno
 export async function POST(request: Request) {
   const body = (await request.json()) as AgentRequest;
   const message = body.message?.trim() ?? "";
+  const activeSkill = await loadTeamSpecSkillPrompt(body.activeSkillId ?? body.context?.teamSpecLibrary?.id);
 
   if (!message) {
-    return Response.json(fallbackDecision(message, undefined, body.context));
+    return Response.json(fallbackDecision(message, undefined, body.context, body.history));
   }
 
   const { config, reason } = resolveModelConfig();
 
   if (!config) {
-    return Response.json(fallbackDecision(message, reason, body.context));
+    return Response.json(fallbackDecision(message, reason, body.context, body.history));
   }
 
-  const fallback = fallbackDecision(message, undefined, body.context);
+  const fallback = fallbackDecision(message, undefined, body.context, body.history);
   const system = [
-    "You are the conversation brain for icon-gen-promax, a comic platform icon generation workflow.",
+    `You are the conversation brain for ${activeSkill.skill.skillName}, selected by the user as ${activeSkill.skill.name}.`,
+    activeSkill.loaded
+      ? `ACTIVE TEAM SPEC / SEMANTIC LIBRARY SKILL (${activeSkill.skill.skillName}) FROM ${activeSkill.skill.skillPath}:\n${activeSkill.content}`
+      : `ACTIVE TEAM SPEC / SEMANTIC LIBRARY SKILL (${activeSkill.skill.skillName}) is not uploaded yet. Use the closest available product workflow, but clearly treat it as pending upload if asked.`,
+    "The selected skill is authoritative for platform semantics, style constraints, source-library strategy, quality gates, naming, and Figma-native delivery rules.",
+    "If the selected skill conflicts with generic defaults below, follow the selected skill.",
     "The fixed workflow is Brief -> Semantic Plan -> SVG Preview approval -> Icon Spec JSON -> Figma native-node draw -> Screenshot Gate -> Production Handoff.",
-    "The fixed style is 24x24, #0F1218, monochrome rounded outline, 2px center stroke, round caps and joins, 2px padding, 4px default corner radius, optical correction on.",
+    `The active output profile is ${activeSkill.skill.outputProfile.masterSize}x${activeSkill.skill.outputProfile.masterSize}, ${activeSkill.skill.outputProfile.color}, ${activeSkill.skill.outputProfile.strokeWidth}px stroke, ${activeSkill.skill.outputProfile.padding}px padding, with skillNames ${activeSkill.skill.outputProfile.skillNames}.`,
     "Do not ask the user to choose style, color, or canvas size. Those are locked by the skill.",
     "SVG preview is only for approval. Final Figma output must be editable native nodes, never pasted or embedded SVG.",
     "Never skip semantic direction approval or SVG preview approval before Figma draw.",
@@ -429,7 +485,12 @@ export async function POST(request: Request) {
     "Allowed action ids: brief, semantic_plan, svg_preview, preview_approval, icon_spec, figma_native_draw, screenshot_gate, production_handoff, reference_workflow, explain_spec, ask_clarification.",
     "Allowed action status values: planned, running, done, blocked, waiting.",
     "If the user provides enough concept and context, use plan_semantics and propose 2-3 visual semantic directions.",
-    "For plan_semantics, you MUST return brief and semanticOptions. brief must include concept, label, semanticName, context, emphasis, glyphKind. semanticOptions must be exactly 3 options with ids A/B/C, title, elements, meaning, risk, previewGlyphKind.",
+    "Treat short answers about placement, purpose, or emphasis as continuations of the latest unfinished icon brief. Merge them with the previous request and never ask the same brief question again.",
+    "For plan_semantics, return brief and 2-3 genuinely distinct semanticOptions. Do not pad weak or duplicate directions to reach three. Options are low-fidelity meaning sketches, never final generated results.",
+    "Every semantic option must include concrete visual elements, not an empty string. Describe a simple non-overlapping schematic composition that can be rendered as a low-fidelity thumbnail.",
+    "After a semantic direction is selected or the user requests more variants, retrieve real approved external sources before any AI drawing. Present only 1-3 strong source-backed candidates; AI is fallback after retrieval fails or the user explicitly requests original exploration.",
+    "For icon-gen-baijiahao, exact mature-library reuse requires strict mode plus the real Figma source node or source screenshot. Adjacent mature hits and team-icon-shape-specs.json are constraints only and must not become final geometry.",
+    "When an external candidate passes intake, preserve its recognizable silhouette, part relationship, direction, and composition. Normalize only controlled style variables such as stroke, radius, spacing, density, live area, and editable decomposition.",
     "semanticOptions must be specific to the latest user request, not generic. For example, personal center should mention avatar/person/card/profile entry; network should mention connected nodes/globe/signal/routing; online game should mention controller/gamepad/play entry, not Wi-Fi. Avoid repeating object/action/status templates unless they genuinely fit.",
     "Allowed previewGlyphKind values: bookmark, share, search, filter, download, upload, play, comment, like, read, settings, arrowsUpDown, arrowsIn, arrowsOut, user, game, network, generic.",
     "If the user says 网络游戏, 联机游戏, 小游戏, game, gaming, controller, choose glyphKind game unless they explicitly ask for network infrastructure/status.",
@@ -450,6 +511,12 @@ export async function POST(request: Request) {
   const userPayload = {
     message,
     history: body.history?.slice(-8) ?? [],
+    activeSkill: {
+      id: activeSkill.skill.id,
+      name: activeSkill.skill.name,
+      skillName: activeSkill.skill.skillName,
+      loaded: activeSkill.loaded,
+    },
     context: body.context ?? {},
   };
 
@@ -458,12 +525,17 @@ export async function POST(request: Request) {
 
     if (!modelResult.ok) {
       return Response.json(
-        fallbackDecision(message, `${config.providerName} 模型接口返回 ${modelResult.status}，已切换本地 fallback。`, body.context),
+        fallbackDecision(
+          message,
+          `${config.providerName} 模型接口返回 ${modelResult.status}，已切换本地 fallback。`,
+          body.context,
+          body.history,
+        ),
       );
     }
 
     return Response.json(parseDecision(modelResult.text, fallback));
   } catch {
-    return Response.json(fallbackDecision(message, "模型接口暂不可用，已切换本地 fallback。", body.context));
+    return Response.json(fallbackDecision(message, "模型接口暂不可用，已切换本地 fallback。", body.context, body.history));
   }
 }

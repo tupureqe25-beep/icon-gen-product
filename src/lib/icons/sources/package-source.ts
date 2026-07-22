@@ -51,7 +51,11 @@ function buildQueryTerms(query: string, aliases: Record<string, string[]> = {}) 
   return Array.from(
     new Set(
       [...expanded, ...aliasTerms]
-        .flatMap((term) => String(term).toLowerCase().split(/[\s/_-]+/))
+        .flatMap((term) => {
+          const normalized = String(term).toLowerCase().trim();
+          if (!normalized) return [];
+          return /[\s/_]+/.test(normalized) ? [normalized, ...normalized.split(/[\s/_]+/)] : [normalized];
+        })
         .map((term) => term.trim())
         .filter(Boolean),
     ),

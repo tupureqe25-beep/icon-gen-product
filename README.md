@@ -40,6 +40,18 @@ OPENAI_MODEL=your_model
 
 Without these variables, the app uses a local `icon-gen-promax` fallback. The fallback simulates the phase gates but is not real model reasoning.
 
+## Account And Encrypted Figma Token
+
+The local product includes email/password accounts with an HttpOnly session cookie. After login, a submitted Figma Token is encrypted on the server with AES-256-GCM and only its masked status is returned to the browser.
+
+Set a stable encryption secret before deployment:
+
+```bash
+ICONOPS_ENCRYPTION_KEY=replace_with_a_long_random_secret
+```
+
+Local accounts, sessions, and encrypted credentials are stored under `.data/`, which is excluded from Git. This file store is suitable for local and single-instance demos. A multi-instance Vercel deployment should replace it with a persistent database and managed secret/key service while keeping the same API boundary.
+
 ## Run Locally
 
 ```bash

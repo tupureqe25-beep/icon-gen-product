@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --foreground: #f4f4f5;
+  --background: #f7f8fb;
+  --foreground: #151821;
 }
 
 @theme inline {
@@ -30,4 +30,1058 @@ body {
 
 svg {
   display: block;
+}
+
+.iconops-light {
+  color: #202532;
+  background:
+    radial-gradient(circle at 50% 22%, rgba(34, 211, 238, 0.10), transparent 34%),
+    radial-gradient(circle at 42% 54%, rgba(147, 197, 253, 0.18), transparent 38%),
+    linear-gradient(180deg, #fbfcff 0%, #f4f6fa 100%);
+}
+
+.iconops-light * {
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.iconops-light ::selection {
+  background: rgba(37, 99, 235, 0.16);
+  color: #111827;
+}
+
+.iconops-ambient-orb {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 9999px;
+  filter: blur(10px);
+  opacity: 0.58;
+  animation: iconops-orb-drift 10s ease-in-out infinite alternate;
+}
+
+.iconops-ambient-orb-a {
+  left: 8%;
+  top: 10%;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.26) 0%, rgba(99, 102, 241, 0.16) 34%, transparent 68%);
+}
+
+.iconops-ambient-orb-b {
+  right: 6%;
+  bottom: 4%;
+  width: 620px;
+  height: 620px;
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.22) 0%, rgba(14, 165, 233, 0.12) 38%, transparent 70%);
+  animation-delay: -4s;
+}
+
+.iconops-landing-card {
+  animation: iconops-card-enter 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes iconops-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes iconops-orb-drift {
+  from {
+    transform: translate3d(-18px, -10px, 0) scale(0.98);
+  }
+  to {
+    transform: translate3d(18px, 16px, 0) scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iconops-ambient-orb,
+  .iconops-landing-card {
+    animation: none;
+  }
+}
+
+.iconops-workbench-empty {
+  animation: iconops-soft-rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes iconops-soft-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iconops-workbench-empty {
+    animation: none;
+  }
+}
+
+.iconops-workbench-shell {
+  gap: 0;
+}
+
+.iconops-panel,
+.iconops-canvas-panel {
+  animation: iconops-panel-enter 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.iconops-chat-panel {
+  animation-delay: 40ms;
+}
+
+.iconops-canvas-panel {
+  animation-delay: 90ms;
+}
+
+.iconops-inspector-panel {
+  animation-delay: 140ms;
+}
+
+.iconops-studio-mark {
+  position: relative;
+  overflow: hidden;
+}
+
+.iconops-studio-mark::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: conic-gradient(from 180deg, transparent, rgba(59, 130, 246, 0.28), transparent 34%);
+  animation: iconops-spin-slow 5s linear infinite;
+}
+
+.iconops-studio-mark > * {
+  position: relative;
+  z-index: 1;
+}
+
+.iconops-chat-scroll {
+  mask-image: linear-gradient(to bottom, transparent 0, black 18px, black calc(100% - 18px), transparent 100%);
+}
+
+.iconops-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(96, 165, 250, 0.16), transparent 28%),
+    linear-gradient(90deg, rgba(255,255,255,0.36), transparent 18%, transparent 82%, rgba(255,255,255,0.36));
+}
+
+.iconops-canvas-surface {
+  background-color: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.iconops-canvas-surface::after {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  pointer-events: none;
+  border-radius: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+@keyframes iconops-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes iconops-spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iconops-panel,
+  .iconops-canvas-panel,
+  .iconops-studio-mark::after {
+    animation: none;
+  }
+}
+
+.iconops-dark {
+  color: #f8fbff;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(34, 211, 238, 0.20), transparent 32%),
+    radial-gradient(circle at 18% 24%, rgba(99, 102, 241, 0.18), transparent 30%),
+    radial-gradient(circle at 82% 72%, rgba(14, 165, 233, 0.16), transparent 32%),
+    #03050a;
+}
+
+.iconops-dark * {
+  scrollbar-color: rgba(148, 163, 184, 0.42) transparent;
+}
+
+.iconops-dark ::selection {
+  background: rgba(34, 211, 238, 0.26);
+  color: #ffffff;
+}
+
+.iconops-dark .iconops-ambient-orb-a {
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.30) 0%, rgba(99, 102, 241, 0.18) 34%, transparent 68%);
+  mix-blend-mode: screen;
+}
+
+.iconops-dark .iconops-ambient-orb-b {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.24) 0%, rgba(14, 165, 233, 0.14) 38%, transparent 70%);
+  mix-blend-mode: screen;
+}
+
+.iconops-scanline {
+  background:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 100% 6px, 42px 100%;
+  mask-image: radial-gradient(circle at 50% 40%, black, transparent 76%);
+}
+
+.iconops-prompt-orbit::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(34,211,238,0.0), rgba(34,211,238,0.52), rgba(129,140,248,0.42), rgba(34,211,238,0.0));
+  filter: blur(12px);
+  opacity: 0.38;
+  animation: iconops-orbit-pulse 3.8s ease-in-out infinite;
+}
+
+.iconops-dark .iconops-panel,
+.iconops-dark .iconops-canvas-panel {
+  box-shadow: 0 30px 120px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.iconops-dark .iconops-canvas-surface {
+  background-color: rgba(4, 8, 18, 0.76);
+  box-shadow: 0 34px 120px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.iconops-dark .iconops-canvas-surface::after {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+@keyframes iconops-orbit-pulse {
+  0%, 100% {
+    opacity: 0.24;
+    transform: translateX(-2%) scaleX(0.98);
+  }
+  50% {
+    opacity: 0.56;
+    transform: translateX(2%) scaleX(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iconops-prompt-orbit::before {
+    animation: none;
+  }
+}
+
+/* Hard dark studio pass: keep business markup, force the visual system closer to the reference zips. */
+.iconops-dark {
+  --studio-bg: #000000;
+  --studio-panel: rgba(8, 8, 9, 0.88);
+  --studio-panel-soft: rgba(255, 255, 255, 0.045);
+  --studio-border: rgba(255, 255, 255, 0.14);
+  --studio-muted: rgba(255, 255, 255, 0.52);
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255,255,255,0.075), transparent 18%),
+    radial-gradient(circle at 20% 80%, rgba(34,211,238,0.10), transparent 28%),
+    #000000 !important;
+}
+
+.iconops-dark .iconops-scanline {
+  opacity: 0.22;
+  background:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 100% 5px, 28px 100%;
+}
+
+.iconops-dark aside[class*="w-14"] {
+  background: rgba(0, 0, 0, 0.84) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.iconops-dark aside[class*="w-14"] button,
+.iconops-dark aside[class*="w-14"] > div:last-child {
+  color: rgba(255,255,255,0.76) !important;
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.iconops-dark .iconops-landing-card h1 {
+  color: #ffffff !important;
+  text-shadow: 0 0 34px rgba(255,255,255,0.12);
+}
+
+.iconops-dark .iconops-landing-title {
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", "Noto Serif SC", serif;
+  font-weight: 500;
+  letter-spacing: -0.055em;
+}
+
+.iconops-landing-emoji {
+  display: inline-block;
+  margin-left: 0.18em;
+  font-size: 0.72em;
+  vertical-align: 0.06em;
+  filter: drop-shadow(0 0 18px rgba(125, 157, 255, 0.42));
+}
+
+.iconops-dark .iconops-landing-card p {
+  color: rgba(255,255,255,0.56) !important;
+}
+
+.iconops-dark .iconops-prompt-orbit {
+  background: rgba(255,255,255,0.045) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+  box-shadow: 0 24px 90px rgba(0,0,0,0.62), 0 0 0 1px rgba(255,255,255,0.04) inset !important;
+}
+
+.iconops-dark .iconops-prompt-orbit textarea {
+  color: #ffffff !important;
+}
+
+.iconops-dark .iconops-prompt-orbit textarea::placeholder {
+  color: rgba(255,255,255,0.42) !important;
+}
+
+.iconops-dark .iconops-landing-card button:not([disabled]) {
+  border-color: rgba(255,255,255,0.14) !important;
+  background: rgba(255,255,255,0.055) !important;
+  color: rgba(255,255,255,0.78) !important;
+  box-shadow: none !important;
+}
+
+.iconops-dark .iconops-landing-card button:not([disabled]):hover {
+  border-color: rgba(255,255,255,0.28) !important;
+  background: rgba(255,255,255,0.10) !important;
+  color: #ffffff !important;
+}
+
+.iconops-dark header,
+.iconops-dark .iconops-panel,
+.iconops-dark .iconops-canvas-panel,
+.iconops-dark .iconops-inspector-panel {
+  background: var(--studio-panel) !important;
+  border-color: var(--studio-border) !important;
+  color: #ffffff !important;
+  box-shadow: 0 26px 90px rgba(0,0,0,0.62), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+}
+
+.iconops-dark .iconops-chat-panel {
+  background: #050505 !important;
+}
+
+.iconops-dark .iconops-canvas-panel {
+  background: #020202 !important;
+}
+
+.iconops-dark [class*="bg-white"],
+.iconops-dark [class*="bg-slate-"],
+.iconops-dark [class*="bg-blue-50"],
+.iconops-dark [class*="bg-emerald-50"],
+.iconops-dark [class*="bg-amber-50"] {
+  background-color: rgba(255,255,255,0.055) !important;
+}
+
+.iconops-dark [class*="border-slate-"],
+.iconops-dark [class*="border-blue-"],
+.iconops-dark [class*="border-emerald-"],
+.iconops-dark [class*="border-amber-"] {
+  border-color: rgba(255,255,255,0.13) !important;
+}
+
+.iconops-dark [class*="text-slate-900"],
+.iconops-dark [class*="text-slate-800"],
+.iconops-dark [class*="text-slate-700"],
+.iconops-dark [class*="text-blue-900"],
+.iconops-dark [class*="text-blue-700"],
+.iconops-dark [class*="text-emerald-700"],
+.iconops-dark [class*="text-amber-700"] {
+  color: rgba(255,255,255,0.88) !important;
+}
+
+.iconops-dark [class*="text-slate-600"],
+.iconops-dark [class*="text-slate-500"],
+.iconops-dark [class*="text-slate-400"] {
+  color: rgba(255,255,255,0.48) !important;
+}
+
+.iconops-dark .iconops-stage {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255,255,255,0.08), transparent 30%),
+    linear-gradient(180deg, #050505 0%, #000 100%) !important;
+}
+
+.iconops-dark .iconops-stage::before {
+  background:
+    radial-gradient(circle at 50% 20%, rgba(34,211,238,0.08), transparent 26%),
+    linear-gradient(90deg, rgba(255,255,255,0.05), transparent 20%, transparent 80%, rgba(255,255,255,0.04));
+}
+
+.iconops-dark .iconops-canvas-surface {
+  background-color: #080808 !important;
+  border-color: rgba(255,255,255,0.14) !important;
+  box-shadow: 0 36px 100px rgba(0,0,0,0.72), inset 0 0 0 1px rgba(255,255,255,0.04) !important;
+}
+
+.iconops-dark .iconops-workbench-empty {
+  background: rgba(0,0,0,0.72) !important;
+  border-color: rgba(255,255,255,0.14) !important;
+  color: #ffffff !important;
+}
+
+.iconops-make-home {
+  background:
+    radial-gradient(circle at 50% 44%, rgba(86, 74, 159, 0.28), transparent 28%),
+    radial-gradient(circle at 50% 55%, rgba(37, 99, 235, 0.12), transparent 34%),
+    #111112 !important;
+}
+
+.iconops-cursor-glow {
+  position: absolute;
+  width: 620px;
+  height: 620px;
+  left: calc(var(--mx, 50%) - 310px);
+  top: calc(var(--my, 50%) - 310px);
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(124, 113, 255, 0.18), rgba(34, 211, 238, 0.06) 36%, transparent 68%);
+  filter: blur(8px);
+  transition: left 120ms ease-out, top 120ms ease-out;
+}
+
+.iconops-make-grid {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(circle at 50% 42%, black, transparent 62%);
+}
+
+.iconops-make-prompt::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(167, 139, 250, 0.30), transparent 38%);
+  opacity: 0.5;
+  filter: blur(18px);
+}
+
+.iconops-figma-workbench {
+  background: #2b2b2b !important;
+}
+
+.iconops-figma-workbench .iconops-panel,
+.iconops-figma-workbench .iconops-canvas-panel {
+  box-shadow: none !important;
+}
+
+.iconops-figma-workbench .iconops-stage::before {
+  display: none;
+}
+
+.iconops-figma-workbench .iconops-canvas-surface {
+  background-color: #2b2b2b !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.iconops-figma-workbench .iconops-canvas-surface::after {
+  border-color: rgba(255,255,255,0.04) !important;
+}
+
+/* Recraft-inspired IconOps workbench */
+.iconops-recraft-workbench {
+  --recraft-bg: #181818;
+  --recraft-panel: #252525;
+  --recraft-panel-soft: #2b2b2b;
+  --recraft-line: rgba(255,255,255,0.09);
+  --recraft-muted: rgba(255,255,255,0.42);
+  --recraft-text: rgba(255,255,255,0.88);
+  --recraft-blueviolet: #5b7cfa;
+  --recraft-orange: #ff7a1a;
+  background: var(--recraft-bg) !important;
+}
+
+.iconops-recraft-workbench .iconops-ambient-orb,
+.iconops-recraft-workbench .iconops-scanline {
+  display: none !important;
+}
+
+.iconops-recraft-topbar {
+  background: #252525 !important;
+  border-color: var(--recraft-line) !important;
+  box-shadow: none !important;
+}
+
+.iconops-recraft-logo {
+  border-radius: 14px !important;
+  background: #f5f5f5 !important;
+  color: #111 !important;
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,0.18) !important;
+}
+
+.iconops-recraft-nav {
+  border: 1px solid transparent !important;
+}
+
+.iconops-recraft-nav.is-active {
+  background: rgba(95,124,255,0.22) !important;
+  border-color: rgba(95,124,255,0.22) !important;
+  color: #fff !important;
+}
+
+.iconops-recraft-pill,
+.iconops-recraft-credit {
+  background: rgba(255,255,255,0.06) !important;
+  border-color: var(--recraft-line) !important;
+  box-shadow: none !important;
+}
+
+.iconops-recraft-credit {
+  background: rgba(95,124,255,0.18) !important;
+  border-color: rgba(95,124,255,0.42) !important;
+}
+
+.iconops-recraft-workbench .iconops-workbench-shell {
+  background: #181818 !important;
+}
+
+.iconops-recraft-chat {
+  background: #252525 !important;
+  border-color: var(--recraft-line) !important;
+  box-shadow: none !important;
+}
+
+.iconops-recraft-composer {
+  background: #292929 !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  box-shadow: 0 18px 70px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+}
+
+.iconops-recraft-canvas,
+.iconops-recraft-canvasbar {
+  background: #181818 !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  box-shadow: none !important;
+}
+
+.iconops-recraft-workbench .iconops-stage {
+  background: #181818 !important;
+}
+
+.iconops-recraft-workbench .iconops-stage::before {
+  display: none !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-surface {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255,255,255,0.035), transparent 34%),
+    #181818 !important;
+  background-size: auto !important;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-surface::after {
+  border-color: rgba(255,255,255,0.035) !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-panel [class*="border-slate-"],
+.iconops-recraft-workbench .iconops-chat-panel [class*="border-slate-"],
+.iconops-recraft-workbench .iconops-inspector-panel [class*="border-slate-"] {
+  border-color: var(--recraft-line) !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-panel [class*="bg-slate-"],
+.iconops-recraft-workbench .iconops-chat-panel [class*="bg-slate-"],
+.iconops-recraft-workbench .iconops-inspector-panel [class*="bg-slate-"] {
+  background-color: rgba(255,255,255,0.055) !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-panel [class*="text-slate-"],
+.iconops-recraft-workbench .iconops-chat-panel [class*="text-slate-"],
+.iconops-recraft-workbench .iconops-inspector-panel [class*="text-slate-"] {
+  color: rgba(255,255,255,0.54) !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-panel [class*="bg-blue-"],
+.iconops-recraft-workbench .iconops-chat-panel [class*="bg-blue-"],
+.iconops-recraft-workbench .iconops-inspector-panel [class*="bg-blue-"] {
+  background-color: rgba(95,124,255,0.14) !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-panel [class*="text-blue-"],
+.iconops-recraft-workbench .iconops-chat-panel [class*="text-blue-"],
+.iconops-recraft-workbench .iconops-inspector-panel [class*="text-blue-"] {
+  color: rgba(221,214,254,0.92) !important;
+}
+
+.iconops-source-drawer {
+  background: rgba(37,37,37,0.94) !important;
+  border-color: var(--recraft-line) !important;
+  box-shadow: 0 18px 70px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+}
+
+.iconops-source-drawer input {
+  background: rgba(255,255,255,0.055) !important;
+  border-color: rgba(255,255,255,0.10) !important;
+  color: rgba(255,255,255,0.9) !important;
+}
+
+.iconops-source-drawer input::placeholder {
+  color: rgba(255,255,255,0.28) !important;
+}
+
+.iconops-source-drawer .grid > button {
+  min-height: 132px !important;
+  border-radius: 18px !important;
+  background: rgba(255,255,255,0.035) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  box-shadow: none !important;
+}
+
+.iconops-source-drawer .grid > button:hover {
+  background: rgba(255,255,255,0.065) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+  transform: translateY(-2px);
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel {
+  background: #252525 !important;
+  border-color: var(--recraft-line) !important;
+  box-shadow: -30px 0 90px rgba(0,0,0,0.32) !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel > div:first-child {
+  background: #252525 !important;
+  border-color: var(--recraft-line) !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel input,
+.iconops-recraft-workbench .iconops-inspector-panel textarea,
+.iconops-recraft-workbench .iconops-inspector-panel select {
+  background: rgba(255,255,255,0.055) !important;
+  border-color: rgba(255,255,255,0.10) !important;
+  color: rgba(255,255,255,0.88) !important;
+}
+
+.iconops-recraft-workbench .iconops-workbench-empty {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.iconops-recraft-tool-palette {
+  display: grid;
+  gap: 8px;
+}
+
+.iconops-recraft-tool-palette button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 14px;
+  color: rgba(255,255,255,0.72);
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.iconops-recraft-tool-palette button:hover,
+.iconops-recraft-tool-palette button.is-active {
+  background: rgba(255,255,255,0.09);
+  color: #fff;
+}
+
+.iconops-recraft-tool-palette button:hover {
+  transform: translateY(-1px);
+}
+
+.iconops-recraft-workbench .iconops-source-drawer {
+  margin: 0 !important;
+  max-height: min(420px, calc(100vh - 190px));
+  overflow: hidden;
+}
+
+.iconops-recraft-workbench .iconops-source-drawer .max-h-\[244px\] {
+  max-height: 260px !important;
+}
+
+.iconops-recraft-workbench .iconops-source-drawer {
+  background: #202124 !important;
+  backdrop-filter: none !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  box-shadow: 0 22px 80px rgba(0,0,0,0.46) !important;
+}
+
+.iconops-recraft-workbench .iconops-source-drawer::before {
+  content: none !important;
+}
+
+.iconops-recraft-workbench .iconops-source-drawer .grid > button {
+  background: #292a2d !important;
+  border-color: rgba(255,255,255,0.10) !important;
+}
+
+.iconops-recraft-workbench .iconops-source-drawer .grid > button:hover {
+  background: #303136 !important;
+  border-color: rgba(126,154,255,0.34) !important;
+}
+
+.iconops-recraft-workbench .iconops-source-drawer [class*="bg-white/"] {
+  background-color: #2b2c30 !important;
+}
+
+.iconops-recraft-workbench .semantic-option-panel {
+  background: rgba(255,255,255,0.025) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035) !important;
+}
+
+.iconops-recraft-workbench .semantic-option-card {
+  min-height: 144px;
+  box-shadow: none !important;
+}
+
+.iconops-recraft-workbench .semantic-option-card:hover {
+  transform: translateY(-1px);
+}
+
+.iconops-recraft-workbench .semantic-option-thumb {
+  background:
+    radial-gradient(circle at 50% 36%, rgba(255,255,255,0.95), rgba(236,236,236,0.82) 52%, rgba(170,170,170,0.18) 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.86),
+    inset 0 -18px 28px rgba(0,0,0,0.18),
+    0 12px 28px rgba(0,0,0,0.22) !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel {
+  font-size: 14px;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel .inspector-compact-status,
+.iconops-recraft-workbench .iconops-inspector-panel .inspector-details {
+  box-shadow: none !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel [class*="shadow-slate"],
+.iconops-recraft-workbench .iconops-inspector-panel [class*="shadow-xl"],
+.iconops-recraft-workbench .iconops-inspector-panel [class*="shadow-2xl"] {
+  box-shadow: none !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel [class*="rounded-2xl"][class*="bg-white"] {
+  background-color: rgba(255,255,255,0.035) !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel .inspector-core-controls > div,
+.iconops-recraft-workbench .iconops-inspector-panel .inspector-advanced-controls > div {
+  border-radius: 18px !important;
+  background: rgba(255,255,255,0.035) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel .inspector-details summary::after {
+  content: "⌄";
+  margin-left: auto;
+  color: rgba(255,255,255,0.32);
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel .inspector-details[open] summary::after {
+  content: "⌃";
+}
+
+.iconops-recraft-workbench .iconops-canvas-hint,
+.iconops-recraft-workbench .iconops-canvas-mini-actions {
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.iconops-recraft-workbench .iconops-stage:hover .iconops-canvas-hint,
+.iconops-recraft-workbench .iconops-stage:hover .iconops-canvas-mini-actions {
+  opacity: 1;
+}
+
+.iconops-recraft-workbench .iconops-canvas-hint {
+  opacity: .72;
+}
+
+.iconops-recraft-workbench .iconops-canvas-mini-actions {
+  opacity: .82;
+}
+
+/* Calm, restrained dark UI pass inspired by GPT/Gemini/Claude */
+.iconops-recraft-workbench {
+  --calm-bg: #111111;
+  --calm-surface: #1b1b1b;
+  --calm-surface-2: #242424;
+  --calm-line: rgba(255,255,255,0.075);
+  --calm-line-strong: rgba(255,255,255,0.12);
+  --calm-text: rgba(255,255,255,0.84);
+  --calm-muted: rgba(255,255,255,0.48);
+  --calm-faint: rgba(255,255,255,0.28);
+  --calm-accent: #5f7cff;
+  --calm-accent-soft: rgba(95,124,255,0.16);
+  --calm-success: rgba(94, 214, 163, 0.18);
+  background: var(--calm-bg) !important;
+}
+
+.iconops-recraft-workbench,
+.iconops-recraft-workbench * {
+  text-shadow: none !important;
+}
+
+.iconops-recraft-workbench .iconops-recraft-topbar,
+.iconops-recraft-workbench .iconops-chat-panel,
+.iconops-recraft-workbench .iconops-canvas-panel,
+.iconops-recraft-workbench .iconops-inspector-panel {
+  background: var(--calm-surface) !important;
+  border-color: var(--calm-line) !important;
+}
+
+.iconops-recraft-workbench .iconops-workbench-shell,
+.iconops-recraft-workbench .iconops-stage,
+.iconops-recraft-workbench .iconops-canvas-surface {
+  background: var(--calm-bg) !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-surface {
+  background:
+    radial-gradient(circle at 50% 46%, rgba(59, 80, 143, 0.10), transparent 34%),
+    var(--calm-bg) !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-surface::after {
+  border-color: rgba(255,255,255,0.022) !important;
+}
+
+.iconops-recraft-workbench .iconops-recraft-nav,
+.iconops-recraft-workbench .iconops-recraft-pill,
+.iconops-recraft-workbench .iconops-recraft-credit,
+.iconops-recraft-workbench .iconops-recraft-composer,
+.iconops-recraft-workbench .iconops-source-drawer,
+.iconops-recraft-workbench .iconops-recraft-tool-palette,
+.iconops-recraft-workbench .iconops-canvas-hint,
+.iconops-recraft-workbench .iconops-canvas-mini-actions,
+.iconops-recraft-workbench .iconops-inspector-panel [class*="rounded"],
+.iconops-recraft-workbench .iconops-chat-panel [class*="rounded"] {
+  box-shadow: none !important;
+}
+
+.iconops-recraft-workbench .iconops-recraft-nav {
+  color: var(--calm-muted) !important;
+  background: transparent !important;
+}
+
+.iconops-recraft-workbench .iconops-recraft-nav.is-active {
+  background: rgba(255,255,255,0.075) !important;
+  border-color: transparent !important;
+  color: var(--calm-text) !important;
+}
+
+.iconops-recraft-workbench .iconops-recraft-credit {
+  background: rgba(255,255,255,0.055) !important;
+  border-color: var(--calm-line) !important;
+  color: var(--calm-muted) !important;
+}
+
+.iconops-recraft-workbench .iconops-recraft-logo {
+  background: rgba(255,255,255,0.055) !important;
+  border-color: var(--calm-line) !important;
+  color: rgba(255,255,255,0.34) !important;
+}
+
+.iconops-recraft-workbench .iconops-chat-panel {
+  background: #0d0d0d !important;
+}
+
+.iconops-recraft-workbench .iconops-chat-scroll > div,
+.iconops-recraft-workbench .iconops-chat-scroll [class*="rounded-"] {
+  border-color: var(--calm-line) !important;
+}
+
+.iconops-recraft-workbench .iconops-chat-scroll [class*="bg-indigo"],
+.iconops-recraft-workbench .iconops-chat-scroll [class*="bg-blue"],
+.iconops-recraft-workbench .iconops-chat-scroll [class*="bg-white"] {
+  background-color: rgba(255,255,255,0.045) !important;
+}
+
+.iconops-recraft-workbench .semantic-option-panel,
+.iconops-recraft-workbench .semantic-option-card {
+  background: rgba(255,255,255,0.035) !important;
+  border-color: var(--calm-line) !important;
+}
+
+.iconops-recraft-workbench .semantic-option-card:hover {
+  background: rgba(255,255,255,0.06) !important;
+  border-color: var(--calm-line-strong) !important;
+}
+
+.iconops-recraft-workbench .semantic-option-thumb {
+  background: linear-gradient(180deg, #e8e8e8 0%, #cfcfcf 100%) !important;
+  box-shadow: none !important;
+}
+
+.iconops-recraft-workbench .semantic-option-card .bg-indigo-500,
+.iconops-recraft-workbench .semantic-option-card span.bg-indigo-500 {
+  background: rgba(95,124,255,0.92) !important;
+}
+
+.iconops-recraft-workbench .iconops-source-drawer {
+  background: #202124 !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 22px 80px rgba(0,0,0,0.46) !important;
+}
+
+.iconops-recraft-workbench .iconops-source-drawer::before {
+  display: none !important;
+}
+
+.iconops-recraft-workbench .iconops-source-drawer .grid > button {
+  background: #292a2d !important;
+  border-color: rgba(255,255,255,0.10) !important;
+}
+
+.iconops-recraft-workbench .iconops-source-drawer .grid > button:hover,
+.iconops-recraft-workbench .iconops-source-drawer .grid > button[class*="ring"] {
+  background: #303136 !important;
+  border-color: rgba(95,124,255,0.42) !important;
+}
+
+.iconops-recraft-workbench .iconops-recraft-tool-palette,
+.iconops-recraft-workbench .iconops-canvas-hint,
+.iconops-recraft-workbench .iconops-canvas-mini-actions {
+  background: rgba(31,31,31,0.86) !important;
+  border-color: var(--calm-line) !important;
+}
+
+.iconops-recraft-workbench .iconops-recraft-tool-palette button.is-active,
+.iconops-recraft-workbench .iconops-recraft-tool-palette button:hover {
+  background: rgba(255,255,255,0.075) !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel {
+  background: var(--calm-surface) !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel .grid.grid-cols-4 {
+  background: rgba(255,255,255,0.035) !important;
+  border-color: var(--calm-line) !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel .grid.grid-cols-4 button.bg-white {
+  background: rgba(255,255,255,0.09) !important;
+  color: var(--calm-text) !important;
+  box-shadow: none !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel .inspector-compact-status,
+.iconops-recraft-workbench .iconops-inspector-panel .inspector-details,
+.iconops-recraft-workbench .iconops-inspector-panel [class*="bg-white"] {
+  background-color: rgba(255,255,255,0.035) !important;
+  border-color: var(--calm-line) !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel .bg-emerald-400\/10,
+.iconops-recraft-workbench .iconops-inspector-panel .bg-emerald-50,
+.iconops-recraft-workbench .iconops-inspector-panel .bg-emerald-500\/10 {
+  background: var(--calm-success) !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel [class*="text-emerald"],
+.iconops-recraft-workbench .iconops-chat-panel [class*="text-emerald"] {
+  color: rgba(157, 238, 203, 0.84) !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel [class*="text-cyan"],
+.iconops-recraft-workbench .iconops-canvas-panel [class*="text-cyan"] {
+  color: var(--calm-muted) !important;
+}
+
+.iconops-recraft-workbench .iconops-inspector-panel h2,
+.iconops-recraft-workbench .iconops-chat-panel h2,
+.iconops-recraft-workbench .iconops-canvas-panel h2,
+.iconops-recraft-workbench .iconops-canvas-panel span,
+.iconops-recraft-workbench .iconops-chat-panel span,
+.iconops-recraft-workbench .iconops-inspector-panel span {
+  letter-spacing: 0 !important;
+}
+
+.iconops-recraft-workbench .iconops-chat-panel p,
+.iconops-recraft-workbench .iconops-inspector-panel p,
+.iconops-recraft-workbench .iconops-canvas-panel p,
+.iconops-recraft-workbench .iconops-chat-panel .text-xs,
+.iconops-recraft-workbench .iconops-inspector-panel .text-xs,
+.iconops-recraft-workbench .iconops-canvas-panel .text-xs {
+  color: var(--calm-faint) !important;
+}
+
+.iconops-recraft-workbench .iconops-chat-panel .text-white\/86,
+.iconops-recraft-workbench .iconops-inspector-panel .text-white\/86,
+.iconops-recraft-workbench .iconops-canvas-panel .text-white\/86,
+.iconops-recraft-workbench .iconops-chat-panel .font-semibold,
+.iconops-recraft-workbench .iconops-inspector-panel .font-semibold,
+.iconops-recraft-workbench .iconops-canvas-panel .font-semibold {
+  color: var(--calm-text) !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-surface > div[style*="width"] > div[class*="top-\[calc"] {
+  max-width: 112px !important;
+  color: rgba(255,255,255,0.44) !important;
+  background: rgba(0,0,0,0.24) !important;
+  border-color: rgba(255,255,255,0.075) !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-icon-card {
+  background: linear-gradient(180deg, #f4f5f7 0%, #d9dde3 100%) !important;
+  border-color: rgba(255,255,255,0.82) !important;
+  box-shadow: 0 18px 44px rgba(0,0,0,0.34), 0 0 0 1px rgba(255,255,255,0.24) inset !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-icon-card:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #e3e7ee 100%) !important;
+  box-shadow: 0 22px 56px rgba(0,0,0,0.42), 0 0 0 1px rgba(126,154,255,0.26) inset !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-icon-card svg,
+.iconops-recraft-workbench .iconops-canvas-icon-card svg * {
+  color: #0f1218 !important;
+  stroke: #0f1218 !important;
+}
+
+.iconops-recraft-workbench .iconops-canvas-surface > div[style*="width"] > div[class*="-right-2"] {
+  color: rgba(255,255,255,0.56) !important;
+  background: rgba(0,0,0,0.30) !important;
+  border-color: rgba(255,255,255,0.08) !important;
 }

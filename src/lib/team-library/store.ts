@@ -59,6 +59,13 @@ function sanitizeId(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5_-]+/gi, "-").replace(/^-+|-+$/g, "") || "team-icon";
 }
 
+function isGenericFigmaLayer(asset: TeamLibraryInputAsset) {
+  return (
+    asset.trainingSource === "figma-canvas" &&
+    /^(rectangle|vector|group|frame|ellipse|line|polygon|boolean)(?:\s+\d+)?$/i.test(asset.name.trim())
+  );
+}
+
 function inferVisualElements(asset: IconAsset) {
   const svg = asset.svg.toLowerCase();
   const elements = [
@@ -137,7 +144,7 @@ export async function upsertTeamLibraryAssets(inputAssets: TeamLibraryInputAsset
   let updated = 0;
 
   for (const inputAsset of inputAssets) {
-    if (!inputAsset.svg?.trim()) continue;
+    if (!inputAsset.svg?.trim() || isGenericFigmaLayer(inputAsset)) continue;
     const sourceKey = `${inputAsset.source}:${inputAsset.name}`.toLowerCase();
     const existing = assetMap.get(inputAsset.id) ?? sourceKeyMap.get(sourceKey);
     const next = normalizeLibraryAsset(inputAsset, existing);

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AgentAction, AgentDecision, AgentMode } from "@/lib/agent/types";
-import { buildFigmaNativeScript } from "@/lib/icon-contract/generate";
+import { buildFigmaNativeScript, scaleNativeShapes } from "@/lib/icon-contract/generate";
 import type {
   BatchFigmaWriteItem,
   BatchFigmaWriteRun,
@@ -18,6 +18,7 @@ import { isFigmaSafePathData, normalizeSvgPathForFigma } from "@/lib/icons/path-
 import { reviewSvg } from "@/lib/icons/review";
 import { searchIcons, type SearchResult } from "@/lib/icons/search";
 import type { IconAsset, ReviewReport } from "@/lib/icons/types";
+import { teamSpecSkillRegistry, type TeamSpecOutputProfile, type TeamSpecSkillId } from "@/lib/team-spec-skills";
 
 const starterMessage = "做一个书签图标，用在章节卡片操作区，强调收藏动作";
 const sourceCandidateDragType = "application/x-iconops-source-candidate";
@@ -49,6 +50,17 @@ type ChatMessage = {
   sourceCandidates?: SourceCandidate[];
 };
 
+type AuthUser = {
+  id: string;
+  email: string;
+  createdAt: string;
+};
+
+type FigmaCredentialStatus = {
+  hasToken: boolean;
+  maskedToken?: string;
+};
+
 type AgentHandleResult = "handled" | "continue";
 
 type WorkflowPhase = "brief" | "semantic" | "preview" | "draw";
@@ -56,13 +68,51 @@ type InspectorTab = "properties" | "spec" | "quality" | "layers";
 type SourceLibraryTab = "all" | "figma" | "curated" | "iconfont" | "iconpark" | "lucide" | "tabler" | "phosphor" | "ai";
 type WorkbenchMode = "chat" | "batch";
 type ManualReviewStatus = "pending" | "approved" | "rejected" | "library";
+type SourceRuntimeMode = "fast" | "strict" | "explore" | "maintenance";
+
+type IconQualityIssue = {
+  id: string;
+  title: string;
+  message: string;
+  severity: "warning" | "blocker";
+  stage: "source" | "geometry" | "team-spec" | "figma-native";
+  actionLabel: string;
+  elementId?: CanvasElementId;
+};
+
+type MatureSourceMatch = {
+  label?: string;
+  name?: string;
+  nodeId?: string;
+  route: "team-reuse-needs-verification" | "team-adjacent-reference";
+  semanticDirection?: string;
+  visualElements?: string[];
+  shapeSummary?: string;
+  guardrails?: {
+    geometrySummary?: string;
+    mustKeep: string[];
+    forbidden: string[];
+  };
+};
+
+type SourceDecision = {
+  skillId: string;
+  query: string;
+  mode: SourceRuntimeMode;
+  route: "team-reuse-needs-verification" | "team-adjacent-reference" | "external-source-search" | "generation-first";
+  exactMatch: MatureSourceMatch | null;
+  adjacentMatches: MatureSourceMatch[];
+  sourceUrl?: string;
+  requiresSourceVerification?: boolean;
+  message: string;
+};
 
 type CanvasElementId = string;
 
 type CanvasElement = {
   id: CanvasElementId;
   name: string;
-  type: "frame" | "path" | "line" | "ellipse" | "preview";
+  type: "frame" | "rect" | "path" | "line" | "ellipse" | "preview";
   x: number;
   y: number;
   width: number;
@@ -72,6 +122,7 @@ type CanvasElement = {
   radius?: number;
   fill?: string;
   pathData?: string;
+  lineSlope?: "down" | "up";
   nativeRole?: string;
   locked?: boolean;
   visible?: boolean;
@@ -116,6 +167,7 @@ type IconGlyphKind =
   | "arrowsUpDown"
   | "arrowsIn"
   | "arrowsOut"
+  | "contentExpand"
   | "user"
   | "game"
   | "network"
@@ -146,6 +198,7 @@ const iconGlyphKinds = [
   "arrowsUpDown",
   "arrowsIn",
   "arrowsOut",
+  "contentExpand",
   "user",
   "game",
   "network",
@@ -205,6 +258,7 @@ type IconCanvasInstance = {
   previewColor?: string;
   reviewStatus?: ManualReviewStatus;
   reviewNote?: string;
+  qualityApprovedIssueIds?: string[];
   previewVariantId?: PreviewVariantId;
 };
 
@@ -239,6 +293,7 @@ type BatchTask = {
 
 type FigmaBridgeStatus = {
   online: boolean;
+  bridgeVersion?: string;
   lastSeenAt?: string;
   serverUrl?: string;
   fileName?: string;
@@ -468,6 +523,20 @@ const glyphProfiles: Record<
     statusElements: "向外箭头主体 + 极小状态点。",
     statusMeaning: "表达当前处于展开或全屏状态。",
   },
+  contentExpand: {
+    label: "ContentExpand",
+    semanticName: "ContentExpand",
+    concept: "智能扩写",
+    objectDirection: "文本延展 · 行文变长",
+    objectElements: "左侧三条短文本线 + 右侧独立延展箭头，二者保持 3px 间距。",
+    objectMeaning: "强调已有文本被扩展成更完整的内容。",
+    actionDirection: "内容补全 · 文档加段落",
+    actionElements: "开放文档轮廓 + 右下角独立短文本线，不叠加加号。",
+    actionMeaning: "强调为文章或段落补充缺失内容。",
+    statusDirection: "写作辅助 · 文本加笔",
+    statusElements: "两条文本线 + 右侧独立笔尖轮廓，保持清晰分区。",
+    statusMeaning: "强调智能写作助手参与扩写过程。",
+  },
   user: {
     label: "User",
     semanticName: "User",
@@ -536,6 +605,7 @@ const defaultBrief: IconBrief = {
   glyphKind: "bookmark",
 };
 
+
 function inferGlyphKind(message: string): IconGlyphKind {
   const lower = message.toLowerCase();
 
@@ -551,8 +621,9 @@ function inferGlyphKind(message: string): IconGlyphKind {
   if (/点赞|喜欢|like|heart/.test(lower)) return "like";
   if (/阅读|读|漫画书|章节|read|book|reader/.test(lower)) return "read";
   if (/设置|配置|偏好|齿轮|setting|settings|gear/.test(lower)) return "settings";
-  if (/排序|升序|降序|上下|sort|order|arrows?-?up-?down|up-?down|arrow-?down-?up|sliders?/.test(lower)) return "arrowsUpDown";
+  if (/排序|升序|降序|上下排序|上下调整|sort|order|arrows?-?up-?down|up-?down|arrow-?down-?up|sliders?/.test(lower)) return "arrowsUpDown";
   if (/收起|缩小|聚拢|退出全屏|collapse|compress|arrows?-?in|arrows?-?in-?simple|minimize|shrink/.test(lower)) return "arrowsIn";
+  if (/智能扩写|文本扩写|内容扩写|续写|补写|内容补全|写作辅助|rewrite|writing assist|text expand/.test(lower)) return "contentExpand";
   if (/展开|放大|扩展|全屏|expand|arrows?-?out|maximize|fullscreen|enlarge/.test(lower)) return "arrowsOut";
   if (/个人中心|个人|我的|账户|账号|用户|头像|profile|account|user|person|me\b/.test(lower)) return "user";
   if (/网络游戏|联机游戏|小游戏|游戏|game|gaming|playable|controller/.test(lower)) return "game";
@@ -563,6 +634,7 @@ function inferGlyphKind(message: string): IconGlyphKind {
 function inferContext(message: string, fallback: string) {
   const contextMatch =
     message.match(/用在([^，。,.；;]+)/) ??
+    message.match(/用于([^，。,.；;]+)/) ??
     message.match(/出现在([^，。,.；;]+)/) ??
     message.match(/放在([^，。,.；;]+)/) ??
     message.match(/出现(?:在)?([^，。,.；;]+)/);
@@ -723,10 +795,10 @@ const semanticOptionPresets: Partial<Record<IconGlyphKind, SemanticOption[]>> = 
     },
     {
       id: "C",
-      title: "结果落点 · 收纳到本地",
-      elements: "底部收纳盒 + 向下进入线，弱化箭头尖锐感。",
-      meaning: "强调下载完成后的“落入本地/收纳”结果。",
-      risk: "语义更温和，可能不如箭头动作一眼明确。",
+      title: "本地保存 · 收纳盒",
+      elements: "独立收纳盒主体 + 顶部盒盖 + 向下落入线。",
+      meaning: "强调下载后的本地保存/收纳结果，与标准下载箭头拉开差异。",
+      risk: "盒盖和落入线必须保持足够留白，避免与托盘下载混淆。",
       previewGlyphKind: "download",
     },
   ],
@@ -948,22 +1020,21 @@ function buildModelBrief(decision: AgentDecision, userContent: string, fallback:
 }
 
 function buildSemanticOptionsFromDecision(decision: AgentDecision | undefined, brief: IconBrief) {
-  if (brief.glyphKind === "game") return buildSemanticOptions(brief);
-  if (brief.glyphKind === "filter") return buildSemanticOptions(brief);
+  if (semanticOptionPresets[brief.glyphKind]) return buildSemanticOptions(brief);
 
   const modelOptions = decision?.semanticOptions
-    ?.filter((option) => option.title && option.elements)
+    ?.filter((option) => option.title && (option.elements || option.meaning))
     .slice(0, 3)
     .map((option, index) => ({
       id: (index === 0 ? "A" : index === 1 ? "B" : "C") as SemanticOption["id"],
       title: option.title,
-      elements: option.elements,
+      elements: option.elements || option.meaning || `${option.title} 的低保真语义示意。`,
       meaning: option.meaning || `适用于${brief.context}。`,
       risk: option.risk || "需要检查 24px 下是否足够清晰。",
       previewGlyphKind: normalizeGlyphKind(option.previewGlyphKind, brief.glyphKind),
     }));
 
-  return modelOptions?.length === 3 ? modelOptions : buildSemanticOptions(brief);
+  return modelOptions && modelOptions.length >= 2 ? modelOptions : buildSemanticOptions(brief);
 }
 
 function pathShape(id: string, name: string, role: string, data: string): NativeShapeContract {
@@ -1086,11 +1157,16 @@ function buildFileTransferShapes(direction: "download" | "upload") {
   ];
 }
 
-function buildInboxDownloadShapes() {
+function buildFileSaveDownShapes() {
   return [
-    pathShape("inbox_container", "Local inbox tray", "download-local-tray", "M5 12V18C5 19 6 20 7 20H17C18 20 19 19 19 18V12"),
-    pathShape("inbox_drop", "Drop into local tray", "download-local-drop", "M12 4V14M9 11L12 14L15 11"),
+    pathShape("file_save_body", "File save body", "file-save-body", "M6 4H13L17 8V20H6V4M13 4V8H17"),
+    pathShape("file_save_drop", "File save down action", "file-save-down", "M12 9V15M9 12L12 15L15 12"),
+    pathShape("file_save_base", "File save baseline", "file-save-base", "M9 18H15"),
   ];
+}
+
+function buildInboxDownloadShapes() {
+  return buildOfflineStorageBoxShapes();
 }
 
 function buildOfflineCardSaveShapes() {
@@ -1228,6 +1304,27 @@ function buildArrowsOutShapes() {
   ];
 }
 
+function buildContentExpandShapes(optionId: SemanticOption["id"]) {
+  if (optionId === "B") {
+    return [
+      pathShape("content_expand_document", "Content document", "content-document", "M6 4H15L18 7V19H6Z"),
+      pathShape("content_expand_fold", "Document fold", "content-fold", "M15 4V7H18"),
+      pathShape("content_expand_lines", "Added content lines", "content-lines", "M9 11H15M9 15H16"),
+    ];
+  }
+  if (optionId === "C") {
+    return [
+      pathShape("content_expand_text", "Writing text", "content-lines", "M4 8H12M4 12H11M4 16H9"),
+      pathShape("content_expand_pen", "Writing assistant pen", "writing-pen", "M15 7L19 11L14 16L11 17L12 14Z"),
+    ];
+  }
+  return [
+    pathShape("content_expand_lines", "Growing text lines", "content-lines", "M4 7H11M4 12H13M4 17H15"),
+    pathShape("content_expand_arrow_stem", "Content extension arrow stem", "content-extension-arrow", "M16 12H20"),
+    pathShape("content_expand_arrow_tip", "Content extension arrow tip", "content-extension-arrow-tip", "M18 10L20 12L18 14"),
+  ];
+}
+
 function buildUserShapes() {
   return [
     pathShape("user_head", "User avatar head", "user-head", circlePath(12, 8, 4)),
@@ -1303,12 +1400,13 @@ function buildBasePreviewShapes(glyphKind: IconGlyphKind, optionId: SemanticOpti
   if (glyphKind === "share") return buildShareShapes(optionId);
   if (glyphKind === "game") return buildGameShapes(optionId);
   if (glyphKind === "network") return buildNetworkShapes(optionId);
-  if (glyphKind === "download" && optionId === "B") return buildFileTransferShapes("download");
-  if (glyphKind === "download" && optionId === "C") return buildInboxDownloadShapes();
+  if (glyphKind === "download" && optionId === "B") return buildFileSaveDownShapes();
+  if (glyphKind === "download" && optionId === "C") return buildOfflineStorageBoxShapes();
   if (glyphKind === "upload" && optionId === "B") return buildFileTransferShapes("upload");
   if (glyphKind === "upload" && optionId === "C") return buildCloudUploadShapes();
   if (glyphKind === "search" && optionId === "B") return buildScanSearchShapes();
   if (glyphKind === "filter") return buildFilterPresetShapes(optionId);
+  if (glyphKind === "contentExpand") return buildContentExpandShapes(optionId);
   if (glyphKind === "settings" && optionId === "B") return buildFilterShapes();
   if (glyphKind === "arrowsUpDown" && optionId === "B") return buildFilterShapes();
   if (glyphKind === "arrowsUpDown" && optionId === "C") return buildListReorderShapes();
@@ -1327,6 +1425,7 @@ function buildBasePreviewShapes(glyphKind: IconGlyphKind, optionId: SemanticOpti
     arrowsUpDown: buildArrowsUpDownShapes,
     arrowsIn: buildArrowsInShapes,
     arrowsOut: buildArrowsOutShapes,
+    contentExpand: () => buildContentExpandShapes(optionId),
     user: buildUserShapes,
     game: () => buildGameShapes(optionId),
     network: () => buildNetworkShapes(optionId),
@@ -1369,7 +1468,7 @@ function buildSemanticPreviewShapes(brief: IconBrief, optionId: SemanticOption["
 
   const usesPreset = Boolean(semanticOptionPresets[brief.glyphKind]);
 
-  if (brief.glyphKind === "share" || usesPreset) return shapes;
+  if (brief.glyphKind === "share" || brief.glyphKind === "contentExpand" || usesPreset) return shapes;
 
   if (optionId === "B") {
     return [
@@ -2111,6 +2210,7 @@ function buildInitialCanvasElements(brief: IconBrief): CanvasElement[] {
     arrowsUpDown: { x: 5, y: 5, width: 14, height: 14 },
     arrowsIn: { x: 5, y: 5, width: 14, height: 14 },
     arrowsOut: { x: 5, y: 5, width: 14, height: 14 },
+    contentExpand: { x: 4, y: 4, width: 16, height: 16 },
     user: { x: 5, y: 4, width: 14, height: 16 },
     game: { x: 4, y: 6, width: 16, height: 13 },
     network: { x: 4, y: 4, width: 16, height: 16 },
@@ -2394,6 +2494,34 @@ async function fetchPackageSourceAssets(tab: SourceLibraryTab, query: string) {
   return payload.assets ?? [];
 }
 
+async function fetchApprovedExternalAssets(query: string, limit = 36) {
+  const response = await fetch(`/api/icon-sources/external?q=${encodeURIComponent(query)}&sources=all&limit=${limit}`);
+  if (!response.ok) throw new Error(`Approved external source search failed: ${response.status}`);
+  const payload = (await response.json()) as { assets?: IconAsset[]; libraries?: string[]; failures?: Array<{ source: string; message: string }> };
+  return {
+    assets: payload.assets ?? [],
+    libraries: payload.libraries ?? [],
+    failures: payload.failures ?? [],
+  };
+}
+
+function recommendedSourceCandidates(candidates: SourceCandidate[], limit = 3) {
+  const signatures = new Set<string>();
+  return candidates
+    .filter((candidate) => candidate.review.score >= 82 && !sourceSvgConversionBlocker(candidate.normalizedSvg))
+    .filter((candidate) => {
+      const signature = candidate.normalizedSvg
+        .replace(/\s+/g, " ")
+        .replace(/#[0-9a-f]{3,8}/gi, "#COLOR")
+        .replace(/\d+(?:\.\d+)?/g, "N")
+        .slice(0, 700);
+      if (signatures.has(signature)) return false;
+      signatures.add(signature);
+      return true;
+    })
+    .slice(0, limit);
+}
+
 function candidateDedupeKey(candidate: SourceCandidate) {
   return `${candidate.source}:${candidate.id || candidate.name}`.toLowerCase();
 }
@@ -2563,9 +2691,50 @@ function linePath(x1: number, y1: number, x2: number, y2: number) {
 }
 
 function sourceSvgConversionBlocker(svg: string) {
-  if (/\stransform=/i.test(svg)) return "来源 SVG 含 transform，当前转换器无法可靠展开矩阵/旋转/嵌套位移。";
+  const hasShape = /<(path|circle|rect|line|polyline|polygon|ellipse)\b/i.test(svg);
+  const hasVisibleStroke = /\sstroke=["'](?!none["'])[^"']+["']/i.test(svg);
+  const hasVisibleFill = /\sfill=["'](?!none["'])[^"']+["']/i.test(svg);
+  const usesImplicitFill = hasShape && !/\sstroke=/i.test(svg) && !/\sfill=["']none["']/i.test(svg);
+  if (!hasVisibleStroke && (hasVisibleFill || usesImplicitFill)) {
+    return "来源是填充轮廓，当前不能机械描边后冒充高质量线性成品；仅作为构图参考，需受控重绘。";
+  }
+  const transforms = Array.from(svg.matchAll(/\stransform=["']([^"']+)["']/gi)).map((match) => match[1]);
+  const isNormalizerTransform = (value: string) =>
+    /^translate\(\s*[-+]?\d*\.?\d+\s+[-+]?\d*\.?\d+\s*\)\s*scale\(\s*[-+]?\d*\.?\d+\s*\)\s*translate\(\s*[-+]?\d*\.?\d+\s+[-+]?\d*\.?\d+\s*\)$/i.test(
+      value.trim(),
+    );
+  if (transforms.some((value) => !isNormalizerTransform(value))) {
+    return "来源 SVG 含旋转、矩阵或嵌套 transform，当前转换器无法可靠展开。";
+  }
   if (/<(use|defs|clipPath|mask|filter|linearGradient|radialGradient)\b/i.test(svg)) return "来源 SVG 含 use/defs/mask/filter 等间接结构，不能安全转成 native path。";
   return undefined;
+}
+
+function readNormalizerTransform(svg: string) {
+  const value = svg.match(/<g\b[^>]*\stransform=["']([^"']+)["']/i)?.[1];
+  if (!value) return { scale: 1, x: 0, y: 0 };
+  const match = value
+    .trim()
+    .match(
+      /^translate\(\s*([-+]?\d*\.?\d+)\s+([-+]?\d*\.?\d+)\s*\)\s*scale\(\s*([-+]?\d*\.?\d+)\s*\)\s*translate\(\s*([-+]?\d*\.?\d+)\s+([-+]?\d*\.?\d+)\s*\)$/i,
+    );
+  if (!match) return { scale: 1, x: 0, y: 0 };
+  const scale = Number(match[3]);
+  return {
+    scale,
+    x: Number(match[1]) + Number(match[4]) * scale,
+    y: Number(match[2]) + Number(match[5]) * scale,
+  };
+}
+
+function transformFigmaPathData(data: string, transform: { scale: number; x: number; y: number }) {
+  if (transform.scale === 1 && transform.x === 0 && transform.y === 0) return data;
+  let coordinateIndex = 0;
+  return data.replace(/[-+]?(?:(?:\d*\.\d+)|(?:\d+\.?))(?:[eE][-+]?\d+)?/g, (value) => {
+    const axisOffset = coordinateIndex % 2 === 0 ? transform.x : transform.y;
+    coordinateIndex += 1;
+    return String(Math.round((Number(value) * transform.scale + axisOffset) * 1000) / 1000);
+  });
 }
 
 function readSvgTagAttributes(tag: string) {
@@ -2625,6 +2794,7 @@ function buildCanvasElementsFromSourceSvg(svg: string, label: string): { element
   const warnings: string[] = [];
   const shapes: NativeShapeContract[] = [];
   const body = svg.replace(/^<svg\b[^>]*>/i, "").replace(/<\/svg>\s*$/i, "");
+  const sourceTransform = readNormalizerTransform(svg);
   const tags = Array.from(body.matchAll(/<(path|line|polyline|polygon|circle|ellipse|rect)\b[^>]*>/gi));
 
   tags.forEach((match, index) => {
@@ -2640,7 +2810,7 @@ function buildCanvasElementsFromSourceSvg(svg: string, label: string): { element
       if (isHiddenSvgShape(attributes) || isSvgPlaceholderPath(data)) return;
       const normalizedData = normalizePathDataForFigma(data, warnings, `${label} path ${index + 1}`);
       if (!normalizedData) return;
-      shapes.push(pathShape(baseId, `${label} source path ${index + 1}`, role, normalizedData));
+      shapes.push(pathShape(baseId, `${label} source path ${index + 1}`, role, transformFigmaPathData(normalizedData, sourceTransform)));
       return;
     }
 
@@ -2651,10 +2821,10 @@ function buildCanvasElementsFromSourceSvg(svg: string, label: string): { element
         name: `${label} source line ${index + 1}`,
         type: "line",
         role,
-        x1: numberAttribute(attributes, "x1"),
-        y1: numberAttribute(attributes, "y1"),
-        x2: numberAttribute(attributes, "x2"),
-        y2: numberAttribute(attributes, "y2"),
+        x1: numberAttribute(attributes, "x1") * sourceTransform.scale + sourceTransform.x,
+        y1: numberAttribute(attributes, "y1") * sourceTransform.scale + sourceTransform.y,
+        x2: numberAttribute(attributes, "x2") * sourceTransform.scale + sourceTransform.x,
+        y2: numberAttribute(attributes, "y2") * sourceTransform.scale + sourceTransform.y,
         strokeWeight,
       });
       return;
@@ -2667,11 +2837,11 @@ function buildCanvasElementsFromSourceSvg(svg: string, label: string): { element
         name: `${label} source rect ${index + 1}`,
         type: "rect",
         role,
-        x: numberAttribute(attributes, "x"),
-        y: numberAttribute(attributes, "y"),
-        width: numberAttribute(attributes, "width"),
-        height: numberAttribute(attributes, "height"),
-        radius: Math.min(4, numberAttribute(attributes, "rx", numberAttribute(attributes, "ry", 4))),
+        x: numberAttribute(attributes, "x") * sourceTransform.scale + sourceTransform.x,
+        y: numberAttribute(attributes, "y") * sourceTransform.scale + sourceTransform.y,
+        width: numberAttribute(attributes, "width") * sourceTransform.scale,
+        height: numberAttribute(attributes, "height") * sourceTransform.scale,
+        radius: Math.min(4, numberAttribute(attributes, "rx", numberAttribute(attributes, "ry", 4)) * sourceTransform.scale),
         strokeWeight,
       });
       return;
@@ -2685,10 +2855,10 @@ function buildCanvasElementsFromSourceSvg(svg: string, label: string): { element
         name: `${label} source circle ${index + 1}`,
         type: "circle",
         role,
-        x: numberAttribute(attributes, "cx") - radius,
-        y: numberAttribute(attributes, "cy") - radius,
-        width: radius * 2,
-        height: radius * 2,
+        x: (numberAttribute(attributes, "cx") - radius) * sourceTransform.scale + sourceTransform.x,
+        y: (numberAttribute(attributes, "cy") - radius) * sourceTransform.scale + sourceTransform.y,
+        width: radius * 2 * sourceTransform.scale,
+        height: radius * 2 * sourceTransform.scale,
         strokeWeight,
       });
       return;
@@ -2703,16 +2873,19 @@ function buildCanvasElementsFromSourceSvg(svg: string, label: string): { element
         name: `${label} source ellipse ${index + 1}`,
         type: "circle",
         role,
-        x: numberAttribute(attributes, "cx") - rx,
-        y: numberAttribute(attributes, "cy") - ry,
-        width: rx * 2,
-        height: ry * 2,
+        x: (numberAttribute(attributes, "cx") - rx) * sourceTransform.scale + sourceTransform.x,
+        y: (numberAttribute(attributes, "cy") - ry) * sourceTransform.scale + sourceTransform.y,
+        width: rx * 2 * sourceTransform.scale,
+        height: ry * 2 * sourceTransform.scale,
         strokeWeight,
       });
       return;
     }
 
-    const points = parsePointsAttribute(attributes.points);
+    const points = parsePointsAttribute(attributes.points).map((point) => ({
+      x: point.x * sourceTransform.scale + sourceTransform.x,
+      y: point.y * sourceTransform.scale + sourceTransform.y,
+    }));
     const data = pointsToPathData(points, tagName === "polygon");
     if (data) {
       const normalizedData = normalizePathDataForFigma(data, warnings, `${label} ${tagName} ${index + 1}`);
@@ -2768,18 +2941,19 @@ function buildCanvasElementsFromNativeShapes(shapes: NativeShapeContract[], labe
       }
 
       if (shape.type === "line") {
+        const deltaX = shape.x2 - shape.x1;
+        const deltaY = shape.y2 - shape.y1;
         return {
           id: shape.id,
           name: shape.name,
-          type: "path",
+          type: "line",
           x: Math.min(shape.x1, shape.x2),
           y: Math.min(shape.y1, shape.y2),
-          width: Math.abs(shape.x2 - shape.x1),
-          height: Math.abs(shape.y2 - shape.y1),
+          width: Math.abs(deltaX),
+          height: Math.abs(deltaY),
           stroke: defaultTeamIconColor,
           strokeWidth: shape.strokeWeight,
-          radius: 4,
-          pathData: linePath(shape.x1, shape.y1, shape.x2, shape.y2),
+          lineSlope: deltaX * deltaY < 0 ? "up" : "down",
           nativeRole: shape.role,
           locked: true,
           visible: true,
@@ -2790,7 +2964,7 @@ function buildCanvasElementsFromNativeShapes(shapes: NativeShapeContract[], labe
         return {
           id: shape.id,
           name: shape.name,
-          type: "path",
+          type: "rect",
           x: shape.x,
           y: shape.y,
           width: shape.width,
@@ -2798,7 +2972,6 @@ function buildCanvasElementsFromNativeShapes(shapes: NativeShapeContract[], labe
           stroke: defaultTeamIconColor,
           strokeWidth: shape.strokeWeight,
           radius: shape.radius ?? 4,
-          pathData: roundedRectPath(shape.x, shape.y, shape.width, shape.height, shape.radius ?? 4),
           nativeRole: shape.role,
           locked: true,
           visible: true,
@@ -2856,7 +3029,7 @@ function buildSourceCandidateCanvasPayload(candidate: SourceCandidate, fallbackB
   const previewShapes = sourceGeometry.shapes;
   const geometryWarnings = [
     ...sourceGeometry.warnings,
-    previewShapes.length > 5 ? `来源图标包含 ${previewShapes.length} 个可编辑节点，超过 icon-gen-promax 推荐上限 5；形态已保留，但写入前建议人工审核。` : undefined,
+    previewShapes.length > 5 ? `来源图标包含 ${previewShapes.length} 个可编辑节点，超过当前团队规范建议上限 5；形态已保留，但写入前建议人工审核。` : undefined,
   ].filter((warning): warning is string => Boolean(warning));
   const sourceWarnings = [
     candidate.review.score < 82 ? `来源原图评审分 ${candidate.review.score}/100，仅作为语义参考。` : undefined,
@@ -2880,8 +3053,8 @@ function buildSourceCandidateCanvasPayload(candidate: SourceCandidate, fallbackB
           .filter(Boolean)
           .join(" ")
       : [
-          "已保留来源库图标的原始形态，并套用 icon-gen-promax 团队规范。",
-          "输出固定为 24×24、#0F1218、2px、round cap/join；来源图形不再被替换成 AI 生成模板。",
+          "已保留来源库图标的原始形态，并套用当前团队规范。",
+          "内部使用 24px 逻辑网格，最终尺寸、颜色和线宽由所选组件库配置决定；来源图形不再被 AI 模板替换。",
           sourceWarnings.join(" "),
         ]
           .filter(Boolean)
@@ -2904,6 +3077,8 @@ function createCanvasInstance(params: {
   reviewNote?: string;
   name?: string;
   previewVariantId?: PreviewVariantId;
+  componentPrefix?: string;
+  previewColor?: string;
 }): IconCanvasInstance {
   const column = params.index % 3;
   const row = Math.floor(params.index / 3);
@@ -2912,13 +3087,13 @@ function createCanvasInstance(params: {
 
   return {
     id: `icon-${Date.now()}-${params.index}`,
-    name: params.name ?? `AijBasic${params.brief.semanticName}`,
+    name: params.name ?? `${params.componentPrefix ?? "AijBasic"}${params.brief.semanticName}`,
     x,
     y,
     scale: 1,
     previewPadding: 28,
     previewStrokeWidth: 2,
-    previewColor: defaultTeamIconColor,
+    previewColor: params.previewColor ?? defaultTeamIconColor,
     glyphKind: params.brief.glyphKind,
     elements: cloneCanvasElements(params.elements),
     optionId: params.optionId,
@@ -2938,6 +3113,8 @@ function buildAiPreviewGridInstances(params: {
   option: SemanticOption;
   variants: PreviewVariant[];
   startIndex: number;
+  componentPrefix?: string;
+  previewColor?: string;
 }): IconCanvasInstance[] {
   const shapeOptionId = resolveShapeOptionId(params.brief, params.option);
   const startX = 120;
@@ -2964,7 +3141,9 @@ function buildAiPreviewGridInstances(params: {
       previewSvg: buildPreviewSvgFromShapes(shapes),
       previewShapes: shapes,
       previewVariantId: variant.id,
-      name: `AijBasic${params.brief.semanticName}V${variant.id}`,
+      name: `${params.componentPrefix ?? "AijBasic"}${params.brief.semanticName}V${variant.id}`,
+      componentPrefix: params.componentPrefix,
+      previewColor: params.previewColor,
       reviewNote: review.blockers.length
         ? `该方案没有进入推荐交付：${review.blockers.join(" ")}`
         : `${variant.title}：${variant.description} ${review.summary}`,
@@ -2984,36 +3163,166 @@ function buildBatchManifest(instances: IconCanvasInstance[]): BatchManifestItem[
   }));
 }
 
-function buildIconSpecFromCanvasInstance(instance: IconCanvasInstance, context = "batch figma write"): IconSpecContract {
-  const semanticName = instance.name.replace(/^AijBasic/, "") || "Icon";
-  const shapes = instance.elements
+function getCanvasInstanceQualityIssues(instance: IconCanvasInstance, profile: TeamSpecOutputProfile): IconQualityIssue[] {
+  const drawableElements = instance.elements.filter(isDrawableElement);
+  const logicalStrokeWidth = profile.strokeWidth / profile.scale;
+  const logicalPadding = profile.padding / profile.scale;
+  const logicalSize = profile.masterSize / profile.scale;
+  const issues: IconQualityIssue[] = [];
+
+  if (instance.reviewStatus === "rejected") {
+    issues.push({
+      id: "manual-rejected",
+      title: "人工审核已打回",
+      message: "该图标被人工打回，需重新调整语义或视觉细节。",
+      severity: "blocker",
+      stage: "source",
+      actionLabel: "打开编辑",
+    });
+  }
+
+  if (instance.sourceConversionStatus === "reference_only") {
+    issues.push({
+      id: "source-reference-only",
+      title: "来源仅作参考",
+      message: "来源 SVG 没有安全转换成可编辑 native nodes，不能靠人工批准直接写入。请更换来源或重绘为安全图层。",
+      severity: "blocker",
+      stage: "source",
+      actionLabel: "查看来源",
+    });
+  } else if (instance.sourceConversionStatus === "needs_review") {
+    issues.push({
+      id: "source-needs-review",
+      title: "来源形态需复核",
+      message: instance.reviewNote || "来源形态已保留并套用团队规范，需要确认复杂度、构图和业务语义。",
+      severity: "warning",
+      stage: "source",
+      actionLabel: "查看来源",
+    });
+  }
+
+  if (!drawableElements.length) {
+    issues.push({
+      id: "native-shapes-empty",
+      title: "没有可编辑图层",
+      message: "当前图标没有可写入的 native shapes，不能靠人工批准创建空组件。",
+      severity: "blocker",
+      stage: "figma-native",
+      actionLabel: "更换或重绘",
+    });
+  }
+
+  if (drawableElements.length > 5) {
+    issues.push({
+      id: "geometry-too-complex",
+      title: "图层复杂度偏高",
+      message: `当前有 ${drawableElements.length} 个可编辑图层，超过团队建议上限 5；确认细节没有堆叠后可以人工批准。`,
+      severity: "warning",
+      stage: "geometry",
+      actionLabel: "检查图层",
+    });
+  }
+
+  drawableElements.forEach((element) => {
+    const elementStrokeWidth = element.type === "ellipse" && (element.strokeWidth ?? 0) === 0 ? 0 : element.strokeWidth ?? logicalStrokeWidth;
+    if (elementStrokeWidth > 0 && Math.abs(elementStrokeWidth - logicalStrokeWidth) > 0.01) {
+      issues.push({
+        id: `stroke-width:${element.id}`,
+        title: "线宽偏离团队规范",
+        message: `${element.name} 当前为 ${elementStrokeWidth}px，逻辑网格应为 ${logicalStrokeWidth}px；可以编辑或一键恢复团队默认。`,
+        severity: "warning",
+        stage: "team-spec",
+        actionLabel: "编辑线宽",
+        elementId: element.id,
+      });
+    }
+
+    if (
+      element.x < logicalPadding ||
+      element.y < logicalPadding ||
+      element.x + element.width > logicalSize - logicalPadding ||
+      element.y + element.height > logicalSize - logicalPadding
+    ) {
+      issues.push({
+        id: `safe-zone:${element.id}`,
+        title: "图形超出安全区",
+        message: `${element.name} 超出 ${logicalPadding}px 安全区，需要调整位置/尺寸；如果是有意光学偏移，可以人工批准。`,
+        severity: "warning",
+        stage: "team-spec",
+        actionLabel: "编辑位置",
+        elementId: element.id,
+      });
+    }
+
+    if (element.type === "ellipse" && (element.strokeWidth ?? 0) === 0 && (element.width > 4 || element.height > 4)) {
+      issues.push({
+        id: `fill-density:${element.id}`,
+        title: "局部填充过大",
+        message: `${element.name} 的填充区域超过 4px，可能破坏 outline-first 结构；需要缩小或人工确认。`,
+        severity: "warning",
+        stage: "team-spec",
+        actionLabel: "编辑尺寸",
+        elementId: element.id,
+      });
+    }
+
+    if (element.type === "path") {
+      const pathData = element.pathData ?? buildPrimaryPath(element, instance.glyphKind).d;
+      const normalizedPath = normalizeSvgPathForFigma(pathData);
+      if (!normalizedPath.data || !isFigmaSafePathData(normalizedPath.data)) {
+        issues.push({
+          id: `unsafe-path:${element.id}`,
+          title: "路径无法安全写入",
+          message: `${element.name} 含 Figma 不兼容的路径命令，必须转换或替换，不能人工批准绕过。`,
+          severity: "blocker",
+          stage: "figma-native",
+          actionLabel: "替换路径",
+          elementId: element.id,
+        });
+      }
+    }
+  });
+
+  return issues;
+}
+
+function buildIconSpecFromCanvasInstance(
+  instance: IconCanvasInstance,
+  context = "batch figma write",
+  profile: TeamSpecOutputProfile = teamSpecSkillRegistry[1].outputProfile,
+  skillId: TeamSpecSkillId = "manju",
+): IconSpecContract {
+  const semanticName = instance.name.replace(/^(?:AijBasic|BjhBasic)+/, "") || "Icon";
+  const logicalShapes = instance.elements
     .map((element) => buildNativeShapeContract(element, instance.glyphKind))
     .map((shape) => sanitizeNativeShapeForFigma(shape))
     .filter((shape): shape is NativeShapeContract => Boolean(shape));
-
-  const warnings = [
-    shapes.length > 5 ? `${instance.name} 路径数为 ${shapes.length}，超过 icon-gen-promax C1 上限 5，需要简化。` : undefined,
-    ...shapes.flatMap((shape) =>
-      shape.type === "path" && !isFigmaSafePathData(shape.data)
-        ? [`${instance.name} / ${shape.name} 含 Figma 不兼容 path 命令，已阻断写入以避免空组件。`]
-        : [],
-    ),
-    instance.sourceConversionStatus === "needs_review" ? `${instance.name} 已保留来源形态并套用团队规范，但仍需人工简化/截图核对。` : undefined,
-    instance.sourceConversionStatus === "reference_only" ? `${instance.name} 仍是来源 SVG 参考，尚未安全转成可写入团队 native shapes。` : undefined,
-  ].filter((warning): warning is string => Boolean(warning));
+  const shapes = scaleNativeShapes(logicalShapes, profile.scale);
+  const qualityIssues = getCanvasInstanceQualityIssues(instance, profile);
+  const approvedIssueIds = new Set(instance.qualityApprovedIssueIds ?? []);
+  const pendingIssues = qualityIssues.filter((issue) => issue.severity === "blocker" || !approvedIssueIds.has(issue.id));
+  const blockers = qualityIssues.filter((issue) => issue.severity === "blocker");
+  const warnings = qualityIssues.map((issue) => `${issue.title}：${issue.message}`);
+  const manualApprovedWarnings = qualityIssues
+    .filter((issue) => issue.severity === "warning" && approvedIssueIds.has(issue.id))
+    .map((issue) => issue.id);
 
   return {
     meta: {
-      name: instance.name.startsWith("AijBasic") ? instance.name : `AijBasic${semanticName}`,
+      name: instance.name.startsWith(profile.componentPrefix) ? instance.name : `${profile.componentPrefix}${semanticName}`,
       label: semanticName,
-      size: 24,
-      grid: 24,
+      size: profile.masterSize,
+      grid: profile.masterSize,
       context,
       style: "outline",
       color_mode: "monochrome",
       corner_radius: "rounded",
       selected_direction: instance.optionId ? `Batch ${instance.optionId}` : "Batch canvas item",
       preview_status: "approved",
+      skill_id: skillId,
+      platform: profile.platform,
+      logical_size: profile.logicalSize,
+      runtime_mode: "strict",
       source: {
         type: instance.sourceName ?? "canvas-instance",
         name: instance.name,
@@ -3023,20 +3332,21 @@ function buildIconSpecFromCanvasInstance(instance: IconCanvasInstance, context =
       },
     },
     canvas: {
-      padding: 2,
-      live_area: "20×20",
+      padding: profile.padding,
+      live_area: profile.liveArea,
       optical_center: true,
     },
     shapes,
     strokes: {
-      color: defaultTeamIconColor,
-      width: 2,
+      color: profile.color,
+      width: profile.strokeWidth,
       cap: "round",
       join: "round",
     },
     validation: {
-      status: !shapes.length || warnings.some((warning) => warning.includes("不兼容 path 命令")) ? "blocked" : warnings.length ? "needs_review" : "pass",
+      status: blockers.length ? "blocked" : pendingIssues.length ? "needs_review" : "pass",
       warnings: shapes.length ? warnings : ["该画布图标没有可写入的 native shapes"],
+      manual_approved_warnings: manualApprovedWarnings,
       output: "Figma native nodes, not pasted SVG",
     },
   };
@@ -3071,6 +3381,7 @@ function buildPrimaryPath(element: CanvasElement, glyphKind: IconGlyphKind) {
     arrowsUpDown: `M${x + 4} ${bottom}V${y + 1}M${x + 1} ${y + 4}L${x + 4} ${y + 1}L${x + 7} ${y + 4}M${right - 4} ${y}V${bottom - 1}M${right - 7} ${bottom - 4}L${right - 4} ${bottom - 1}L${right - 1} ${bottom - 4}`,
     arrowsIn: `M${x} ${y}L${center} ${centerY}M${center} ${y + 1}V${centerY}H${x + 1}M${right} ${bottom}L${center} ${centerY}M${center} ${bottom - 1}V${centerY}H${right - 1}`,
     arrowsOut: `M${center} ${centerY}L${x} ${y}M${x} ${y + 4}V${y}H${x + 4}M${center} ${centerY}L${right} ${bottom}M${right - 4} ${bottom}H${right}V${bottom - 4}`,
+    contentExpand: `M${x} ${y + 3}H${center}M${x} ${centerY}H${center + 2}M${x} ${bottom - 3}H${center + 4}M${right - 4} ${centerY - 3}V${centerY + 3}M${right - 7} ${centerY}H${right - 1}`,
     user: `M${center} ${y + 1}A4 4 0 1 1 ${center} ${y + 9}A4 4 0 1 1 ${center} ${y + 1}M${x} ${bottom}C${x + 1} ${bottom - 5} ${x + 5} ${bottom - 7} ${center} ${bottom - 7}C${right - 5} ${bottom - 7} ${right - 1} ${bottom - 5} ${right} ${bottom}`,
     game: `M${x + 3} ${y + 5}H${right - 3}C${right - 1} ${y + 5} ${right} ${y + 7} ${right} ${y + 10}C${right} ${bottom} ${right - 2} ${bottom + 1} ${right - 4} ${bottom - 1}L${right - 6} ${bottom - 3}H${x + 6}L${x + 4} ${bottom - 1}C${x + 2} ${bottom + 1} ${x} ${bottom} ${x} ${y + 10}C${x} ${y + 7} ${x + 1} ${y + 5} ${x + 3} ${y + 5}ZM${x + 4} ${centerY}V${centerY + 4}M${x + 2} ${centerY + 2}H${x + 6}M${right - 5} ${centerY + 2}H${right - 3}`,
     network: `M${x + 5} ${centerY - 2}L${right - 4} ${y + 2}M${x + 5} ${centerY + 2}L${right - 4} ${bottom - 2}M${x + 2} ${centerY}A3 3 0 1 1 ${x + 8} ${centerY}A3 3 0 1 1 ${x + 2} ${centerY}M${right - 6} ${y + 2}A3 3 0 1 1 ${right} ${y + 2}A3 3 0 1 1 ${right - 6} ${y + 2}M${right - 6} ${bottom - 2}A3 3 0 1 1 ${right} ${bottom - 2}A3 3 0 1 1 ${right - 6} ${bottom - 2}`,
@@ -3085,7 +3396,7 @@ function buildPrimaryPath(element: CanvasElement, glyphKind: IconGlyphKind) {
 }
 
 function isDrawableElement(element: CanvasElement) {
-  return element.visible !== false && (element.type === "path" || element.type === "line" || element.type === "ellipse");
+  return element.visible !== false && (element.type === "rect" || element.type === "path" || element.type === "line" || element.type === "ellipse");
 }
 
 function getPropertyBounds(element: CanvasElement) {
@@ -3101,8 +3412,9 @@ function getPropertyBounds(element: CanvasElement) {
   }
 
   const sizeBounds = {
+    rect: [2, 20],
     path: [6, 20],
-    line: [3, 8],
+    line: element.nativeRole === "plus-badge" || !element.nativeRole ? [3, 8] : [0, 20],
     ellipse: [2, 6],
   }[element.type];
 
@@ -3112,12 +3424,42 @@ function getPropertyBounds(element: CanvasElement) {
     width: sizeBounds,
     height: sizeBounds,
     strokeWidth: [element.type === "ellipse" ? 0 : 1, 3],
-    radius: [element.type === "path" ? 1 : 0, 4],
+    radius: [element.type === "path" || element.type === "rect" ? 1 : 0, 4],
   } as const;
 }
 
 function buildNativeShapeContract(element: CanvasElement, glyphKind: IconGlyphKind): NativeShapeContract | undefined {
   if (!isDrawableElement(element)) return undefined;
+
+  if (element.type === "rect") {
+    return {
+      id: element.id,
+      name: element.name,
+      type: "rect",
+      role: element.nativeRole ?? `${glyphKind}-rect`,
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+      radius: element.radius ?? 4,
+      strokeWeight: element.strokeWidth ?? 2,
+    };
+  }
+
+  if (element.type === "path" && element.nativeRole === "source-rect") {
+    return {
+      id: element.id,
+      name: element.name,
+      type: "rect",
+      role: element.nativeRole,
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+      radius: element.radius ?? 4,
+      strokeWeight: element.strokeWidth ?? 2,
+    };
+  }
 
   if (element.type === "path") {
     const pathData = element.pathData ?? buildPrimaryPath(element, glyphKind).d;
@@ -3133,13 +3475,27 @@ function buildNativeShapeContract(element: CanvasElement, glyphKind: IconGlyphKi
   }
 
   if (element.type === "line") {
+    const role = element.nativeRole ?? "plus-badge";
+    if (role !== "plus-badge") {
+      return {
+        id: element.id,
+        name: element.name,
+        type: "line",
+        role,
+        x1: element.x,
+        y1: element.lineSlope === "up" ? element.y + element.height : element.y,
+        x2: element.x + element.width,
+        y2: element.lineSlope === "up" ? element.y : element.y + element.height,
+        strokeWeight: element.strokeWidth ?? 2,
+      };
+    }
     const centerY = element.y + element.height / 2;
 
     return {
       id: element.id,
       name: element.name,
       type: "line",
-      role: "plus-badge",
+      role,
       x1: element.x,
       y1: centerY,
       x2: element.x + element.width,
@@ -3255,6 +3611,29 @@ function IconCanvasSvg({
           />
         ) : null;
 
+        if (element.type === "rect") {
+          return (
+            <g key={element.id} className="cursor-pointer" onClick={(event) => {
+              event.stopPropagation();
+              onSelect(element.id);
+            }}>
+              <rect
+                x={element.x}
+                y={element.y}
+                width={element.width}
+                height={element.height}
+                rx={element.radius ?? 4}
+                fill="none"
+                stroke={element.stroke ?? defaultTeamIconColor}
+                strokeWidth={element.strokeWidth ?? 2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              {selectionRect}
+            </g>
+          );
+        }
+
         if (element.type === "path") {
           const path = element.pathData
             ? {
@@ -3284,6 +3663,9 @@ function IconCanvasSvg({
         if (element.type === "line") {
           const centerX = element.x + element.width / 2;
           const centerY = element.y + element.height / 2;
+          const isPlusBadge = element.nativeRole === "plus-badge" || !element.nativeRole;
+          const lineY1 = element.lineSlope === "up" ? element.y + element.height : element.y;
+          const lineY2 = element.lineSlope === "up" ? element.y : element.y + element.height;
           return (
             <g key={element.id} className="cursor-pointer" onClick={(event) => {
               event.stopPropagation();
@@ -3291,22 +3673,24 @@ function IconCanvasSvg({
             }}>
               <line
                 x1={element.x}
-                y1={centerY}
+                y1={isPlusBadge ? centerY : lineY1}
                 x2={element.x + element.width}
-                y2={centerY}
+                y2={isPlusBadge ? centerY : lineY2}
                 stroke={element.stroke ?? "#0F1218"}
                 strokeWidth={element.strokeWidth ?? 2}
                 strokeLinecap="round"
               />
-              <line
-                x1={centerX}
-                y1={element.y}
-                x2={centerX}
-                y2={element.y + element.height}
-                stroke={element.stroke ?? "#0F1218"}
-                strokeWidth={element.strokeWidth ?? 2}
-                strokeLinecap="round"
-              />
+              {isPlusBadge ? (
+                <line
+                  x1={centerX}
+                  y1={element.y}
+                  x2={centerX}
+                  y2={element.y + element.height}
+                  stroke={element.stroke ?? "#0F1218"}
+                  strokeWidth={element.strokeWidth ?? 2}
+                  strokeLinecap="round"
+                />
+              ) : null}
               {selectionRect}
             </g>
           );
@@ -3344,14 +3728,14 @@ function Badge({
   tone?: "neutral" | "green" | "amber" | "red" | "blue";
 }) {
   const toneClass = {
-    neutral: "border-zinc-800 bg-zinc-900 text-zinc-300",
-    green: "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
-    amber: "border-amber-500/30 bg-amber-500/10 text-amber-200",
-    red: "border-red-500/30 bg-red-500/10 text-red-200",
-    blue: "border-blue-500/30 bg-blue-500/10 text-blue-200",
+    neutral: "border-white/10 bg-white/[0.055] text-white/58",
+    green: "border-emerald-400/24 bg-emerald-400/10 text-emerald-200",
+    amber: "border-amber-400/24 bg-amber-400/10 text-amber-200",
+    red: "border-red-400/24 bg-red-400/10 text-red-200",
+    blue: "border-indigo-300/24 bg-indigo-400/10 text-indigo-100",
   }[tone];
 
-  return <span className={`rounded border px-2 py-0.5 text-xs ${toneClass}`}>{children}</span>;
+  return <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${toneClass}`}>{children}</span>;
 }
 
 function phaseLabel(phase: WorkflowPhase) {
@@ -3434,7 +3818,7 @@ function instanceSourceModeTone(instance?: IconCanvasInstance): "neutral" | "gre
   return "amber";
 }
 
-function toIconComponentName(name: string, fallback = "Icon") {
+function toIconComponentName(name: string, fallback = "Icon", prefix = "AijBasic") {
   const words = name
     .replace(/[^a-zA-Z0-9\u4e00-\u9fa5]+/g, " ")
     .trim()
@@ -3447,7 +3831,7 @@ function toIconComponentName(name: string, fallback = "Icon") {
     })
     .join("");
 
-  return `AijBasic${pascal || fallback}`;
+  return `${prefix}${pascal || fallback}`;
 }
 
 function manualReviewLabel(status: ManualReviewStatus = "pending") {
@@ -3466,6 +3850,24 @@ function manualReviewTone(status: ManualReviewStatus = "pending"): "neutral" | "
     rejected: "red",
     library: "blue",
   }[status] as "neutral" | "green" | "amber" | "red" | "blue";
+}
+
+function qualityStageLabel(stage: IconQualityIssue["stage"]) {
+  return {
+    source: "来源转换",
+    geometry: "图层结构",
+    "team-spec": "团队规范",
+    "figma-native": "Figma 写入",
+  }[stage];
+}
+
+function canvasInstanceQualityState(instance: IconCanvasInstance, profile: TeamSpecOutputProfile) {
+  const issues = getCanvasInstanceQualityIssues(instance, profile);
+  const approvedIssueIds = new Set(instance.qualityApprovedIssueIds ?? []);
+  if (issues.some((issue) => issue.severity === "blocker")) return { label: "需修复", tone: "red" as const };
+  if (issues.some((issue) => !approvedIssueIds.has(issue.id))) return { label: "待处理", tone: "amber" as const };
+  if (issues.length) return { label: "人工已批", tone: "green" as const };
+  return { label: "可写入", tone: "green" as const };
 }
 
 function buildVisualReviewItems(params: {
@@ -3591,7 +3993,8 @@ const sourceQueryTermsByGlyphKind: Record<IconGlyphKind, string[]> = {
   settings: ["settings", "sliders", "gear"],
   arrowsUpDown: ["sort", "arrow-up-down", "reorder"],
   arrowsIn: ["collapse", "minimize", "arrows-in"],
-  arrowsOut: ["expand", "fullscreen", "arrows-out"],
+    arrowsOut: ["expand", "fullscreen", "arrows-out"],
+  contentExpand: ["text-expand", "file-plus", "text-plus", "writing", "pen-line"],
   user: ["user", "person", "profile"],
   game: ["gamepad", "game", "controller"],
   network: ["network", "nodes", "signal", "route"],
@@ -3604,25 +4007,22 @@ function buildSemanticSourceQuery(brief: IconBrief, option?: SemanticOption, fal
   const optionTitle = option ? splitSemanticTitle(option.title) : undefined;
   const optionText = option ? `${optionTitle?.strategy ?? ""} ${optionTitle?.visual ?? ""} ${option.elements} ${option.meaning}` : "";
 
-  return Array.from(
+  const focusedQuery = Array.from(
     new Set(
       [
         brief.concept,
-        brief.label,
         brief.emphasis,
         optionTitle?.strategy,
         optionTitle?.visual,
-        option?.id === "A" ? "object outline" : undefined,
-        option?.id === "B" ? "action arrow send add" : undefined,
-        option?.id === "C" ? "status badge result" : undefined,
         ...sourceQueryTermsByGlyphKind[glyphKind],
-        ...optionText.split(/[\s，。；;、+·/]+/),
-        fallbackText,
+        ...optionText.split(/[\s，。；;、+·/]+/).filter((term) => /扩|补|写|文本|内容|文档|笔|text|content|document|file|writing|pen/i.test(term)),
       ]
         .map((term) => String(term || "").trim())
         .filter((term) => term.length >= 2 && term.length <= 32),
     ),
   ).join(" ");
+
+  return focusedQuery || fallbackText || brief.concept;
 }
 
 function buildSemanticOptionThumbnailShapes(brief: IconBrief, option: SemanticOption) {
@@ -3631,7 +4031,7 @@ function buildSemanticOptionThumbnailShapes(brief: IconBrief, option: SemanticOp
     glyphKind: option.previewGlyphKind ?? brief.glyphKind ?? inferGlyphKindFromOption(option),
   };
   const shapeOptionId = resolveShapeOptionId(thumbnailBrief, option);
-  const shapes = buildQualityAssuredPreviewShapes(thumbnailBrief, shapeOptionId, "1");
+  const shapes = buildSemanticPreviewShapes(thumbnailBrief, shapeOptionId);
   const review = reviewGeneratedPreview(thumbnailBrief, shapeOptionId, shapes);
 
   if (!review.blockers.length) return { shapes, review };
@@ -3650,15 +4050,15 @@ function SemanticOptionThumbnail({ brief, option }: { brief: IconBrief; option: 
 
   return (
     <div
-      className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border bg-white shadow-inner shadow-black/10 ${
-        blocked ? "border-amber-400" : "border-zinc-700"
+      className={`semantic-option-thumb relative flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-2xl border ${
+        blocked ? "border-amber-300/60" : "border-white/10"
       }`}
       title={blocked ? review.blockers[0] : review.summary}
     >
-      <div className="absolute inset-2 rounded-md border border-dashed border-zinc-300" />
-      <div className="relative z-10 h-8 w-8 text-[#0F1218] [&_svg]:h-full [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
+      <div className="absolute inset-2.5 rounded-xl border border-dashed border-white/22" />
+      <div className="relative z-10 h-10 w-10 text-[#10131a] [&_svg]:h-full [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: svg }} />
       {blocked ? (
-        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-zinc-950">
+        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-slate-950">
           !
         </span>
       ) : null}
@@ -3676,10 +4076,10 @@ function SemanticOptionCards({
   onQuickAction: (value: string) => void;
 }) {
   return (
-    <div className="mt-3 rounded-2xl border border-zinc-700/70 bg-[#1d2230]/70 p-2">
-      <div className="mb-2 flex items-center justify-between px-1">
-        <span className="text-xs font-semibold text-zinc-300">选一个视觉方向</span>
-        <span className="text-xs text-zinc-600">点击后展开 AI 方案</span>
+    <div className="semantic-option-panel mt-3 rounded-[24px] border border-white/10 bg-white/[0.025] p-3">
+      <div className="mb-3 flex items-center justify-between px-0.5">
+        <span className="text-xs font-semibold text-white/78">选一个视觉方向</span>
+        <span className="text-xs text-white/30">低保真草图 · 点击后检索来源</span>
       </div>
       <div className="grid grid-cols-3 gap-2">
         {options.slice(0, 3).map((option) => {
@@ -3690,20 +4090,47 @@ function SemanticOptionCards({
               key={option.id}
               type="button"
               onClick={() => onQuickAction(optionActionValue(option.id))}
-              className="group min-w-0 rounded-xl border border-zinc-700 bg-black/20 p-2 text-left transition hover:border-blue-400 hover:bg-blue-500/10"
+              className="semantic-option-card group min-w-0 rounded-[18px] border border-white/8 bg-white/[0.035] p-2.5 text-left transition hover:border-indigo-300/40 hover:bg-white/[0.06]"
             >
               <SemanticOptionThumbnail brief={brief} option={option} />
-              <div className="mt-2 flex items-center gap-1.5">
-                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
+              <div className="mt-3 flex items-center gap-1.5">
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-bold text-white shadow-sm shadow-indigo-500/30">
                   {option.id}
                 </span>
-                <span className="truncate text-xs font-semibold text-zinc-50">{title.visual}</span>
+                <span className="truncate text-xs font-semibold text-white/86">{title.visual}</span>
               </div>
-              <p className="mt-1 truncate text-xs text-zinc-500">{semanticOptionStrategyLabel(option)}</p>
-              <p className="mt-2 text-[11px] font-semibold text-blue-300 opacity-0 transition group-hover:opacity-100">展开方案</p>
+              <p className="mt-1 truncate text-xs text-white/36">{semanticOptionStrategyLabel(option)}</p>
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function SourceRecommendationCards({ candidates, onQuickAction }: { candidates: SourceCandidate[]; onQuickAction: (value: string) => void }) {
+  if (!candidates.length) return null;
+
+  return (
+    <div className="mt-3">
+      <div className="mb-2 flex items-center justify-between text-xs">
+        <span className="font-semibold text-white/72">来源检索推荐</span>
+        <span className="text-white/30">只展示通过门槛的 {candidates.length} 个</span>
+      </div>
+      <div className={`grid gap-2 ${candidates.length === 1 ? "grid-cols-1" : candidates.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+        {candidates.map((candidate) => (
+          <button
+            key={candidate.id}
+            type="button"
+            onClick={() => onQuickAction(`choose-source:${encodeURIComponent(candidate.id)}`)}
+            className="min-w-0 rounded-2xl border border-white/9 bg-white/[0.035] p-2.5 text-left transition hover:border-indigo-300/35 hover:bg-white/[0.065]"
+          >
+            <div className="flex h-16 items-center justify-center rounded-xl bg-[#eef0f4] p-3 text-[#0f1218] [&_svg]:h-full [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: candidate.normalizedSvg }} />
+            <div className="mt-2 truncate text-xs font-semibold text-white/80">{candidate.name}</div>
+            <div className="mt-0.5 truncate text-[11px] text-white/34">{candidate.source} · {candidate.review.score}</div>
+            <div className="mt-2 text-[11px] font-semibold text-indigo-200/72">点击放入画布</div>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -3722,10 +4149,10 @@ function ChatBubble({
 
   return (
     <div
-      className={`rounded-2xl border px-4 py-3 text-sm leading-6 shadow-sm shadow-black/10 ${
+      className={`rounded-[20px] border px-4 py-3 text-sm leading-6 shadow-sm shadow-black/20 ${
         isUser
-          ? "ml-8 border-blue-500/25 bg-blue-500/12 text-blue-50"
-          : "mr-8 border-zinc-700/70 bg-[#24242a] text-zinc-200"
+          ? "ml-8 border-indigo-300/18 bg-indigo-400/10 text-white/86"
+          : "mr-8 border-white/10 bg-white/[0.045] text-white/72"
       }`}
     >
       <div className="whitespace-pre-line">
@@ -3739,7 +4166,7 @@ function ChatBubble({
               key={suggestion}
               type="button"
               onClick={() => onQuickAction(`send:${suggestion}`)}
-              className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-left text-xs leading-5 text-zinc-300 transition hover:border-blue-400 hover:bg-blue-500/10 hover:text-blue-100"
+              className="rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-left text-xs leading-5 text-white/58 transition hover:bg-white/[0.08] hover:text-white"
             >
               {suggestion}
             </button>
@@ -3749,13 +4176,16 @@ function ChatBubble({
       {!isUser && message.semanticOptions?.length ? (
         <SemanticOptionCards brief={semanticBrief} options={message.semanticOptions} onQuickAction={onQuickAction} />
       ) : null}
+      {!isUser && message.sourceCandidates?.length ? (
+        <SourceRecommendationCards candidates={message.sourceCandidates} onQuickAction={onQuickAction} />
+      ) : null}
       {!isUser && message.quickActions?.length ? (
         <div className="mt-3 grid gap-2">
           {message.quickActions.map((action) => (
             <button
               key={action.value}
               onClick={() => onQuickAction(action.value)}
-              className="rounded border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-left text-xs font-semibold text-blue-100 transition hover:border-blue-400 hover:bg-blue-500/20"
+              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-left text-xs font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100"
             >
               {action.label}
             </button>
@@ -3790,18 +4220,21 @@ function EmptyChatState({
 
   return (
     <div className="flex min-h-full items-end px-1 pb-3">
-      <div className="w-full rounded-2xl border border-zinc-800 bg-[#25252a]/70 p-3">
-        <p className="text-sm font-semibold text-zinc-100">{mode === "chat" ? "可以直接这样开始" : "可以粘贴这些资料"}</p>
-        <p className="mt-1 text-xs leading-5 text-zinc-500">
-          {mode === "chat" ? "我会按图标语义追问必要信息，并自动套团队规范。" : "我会拆成多个图标任务，再批量套团队规范。"}
-        </p>
+      <div className="w-full rounded-[24px] border border-white/10 bg-white/[0.035] p-4 shadow-none backdrop-blur">
+        <div className="mb-4 rounded-[20px] border border-white/8 bg-white/[0.045] p-4">
+          <p className="text-sm font-semibold text-white/82">{mode === "chat" ? "说一句需求，我来变成团队图标" : "粘贴一批资料，我来批量整理"}</p>
+          <p className="mt-2 text-xs leading-5 text-white/42">
+            {mode === "chat" ? "理解语义 → 找参考 / AI 生成 → 套团队规范。" : "识别图标名、文档或 Figma 链接，批量放到画布。"}
+          </p>
+        </div>
+        <p className="text-xs font-semibold tracking-[0.14em] text-white/32">可以这样开始</p>
         <div className="mt-3 space-y-2">
           {prompts.map((prompt) => (
             <button
               key={prompt}
               type="button"
               onClick={() => onUsePrompt(prompt)}
-              className="w-full rounded-xl border border-zinc-700 bg-black/20 px-3 py-2 text-left text-xs leading-5 text-zinc-300 transition hover:border-blue-400 hover:bg-blue-500/10 hover:text-blue-100"
+              className="w-full rounded-2xl border border-white/8 bg-white/[0.04] px-3 py-3 text-left text-sm leading-5 text-white/58 transition hover:border-indigo-300/22 hover:bg-white/[0.07] hover:text-white"
             >
               {prompt}
             </button>
@@ -3827,6 +4260,7 @@ function FigmaNativeSetupBar({
   scriptCopyStatus,
   onTargetUrlChange,
   onTokenChange,
+  onTokenBlur,
   onPrepare,
   onCopyJson,
   onCopyScript,
@@ -3845,6 +4279,7 @@ function FigmaNativeSetupBar({
   scriptCopyStatus: "idle" | "copied" | "failed";
   onTargetUrlChange: (value: string) => void;
   onTokenChange: (value: string) => void;
+  onTokenBlur: () => void;
   onPrepare: () => void;
   onCopyJson: () => void;
   onCopyScript: () => void;
@@ -3852,6 +4287,8 @@ function FigmaNativeSetupBar({
   const hasTarget = Boolean(targetUrl.trim());
   const jobStatus = writeJob?.status;
   const isBridgeOnline = Boolean(bridgeStatus?.online);
+  const isBridgeCurrent = isBridgeOnline && bridgeStatus?.bridgeVersion === "2.0";
+  const bridgeNeedsReload = isBridgeOnline && !isBridgeCurrent;
   const statusTone =
     jobStatus === "completed"
       ? "green"
@@ -3881,77 +4318,225 @@ function FigmaNativeSetupBar({
       : runStatusLabel(status);
 
   return (
-    <section className="shrink-0 border-b border-zinc-800/80 bg-[#19191e] px-5 py-3">
+    <section className="shrink-0 border-b border-slate-200/80 bg-white/88 px-5 py-3 shadow-sm shadow-slate-200/60 backdrop-blur-xl">
       <div className="flex items-center gap-3">
-        <div className="w-44 shrink-0">
+        <div className="w-64 shrink-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-zinc-100">Figma 输出设置</h2>
-            <Badge tone={statusTone}>{statusLabel}</Badge>
-            <Badge tone={isBridgeOnline ? "green" : "amber"}>{isBridgeOnline ? "插件在线" : "插件未连接"}</Badge>
+            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-50 text-sm text-emerald-600 ring-1 ring-emerald-100">↗</span>
+            <div>
+              <h2 className="text-sm font-semibold text-white/86">Figma 交付连接</h2>
+              <p className="mt-0.5 text-xs text-white/42">
+                {isBridgeOnline && bridgeStatus?.fileName ? `${bridgeStatus.fileName} · ${bridgeStatus.pageName ?? "当前页"}` : "可先生成，最后统一写入。"}
+              </p>
+            </div>
           </div>
-          <p className="mt-1 text-xs leading-5 text-zinc-500">
-            {isBridgeOnline && bridgeStatus?.fileName ? `${bridgeStatus.fileName} · ${bridgeStatus.pageName ?? "当前页"}` : "一开始配置，后面统一写入。"}
-          </p>
         </div>
         <label className="min-w-[280px] flex-1">
           <span className="sr-only">目标 Figma 链接</span>
           <input
             value={targetUrl}
             onChange={(event) => onTargetUrlChange(event.target.value)}
-            placeholder="目标 Figma 链接：https://www.figma.com/design/...?...node-id=..."
-            className="h-10 w-full rounded-xl border border-zinc-700 bg-black/35 px-3 text-xs text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-blue-500"
+            placeholder="目标 Figma 文件或画布链接（可稍后填写）"
+            className="h-10 w-full rounded-2xl border border-white/10 bg-white/[0.055] px-4 text-sm text-white/86 outline-none placeholder:text-white/32 focus:border-indigo-300/45 focus:bg-white/[0.075]"
           />
         </label>
-        <label className="w-64 shrink-0">
+        <label className="w-56 shrink-0">
           <span className="sr-only">Figma Token</span>
           <input
             value={token}
             onChange={(event) => onTokenChange(event.target.value)}
+            onBlur={onTokenBlur}
             type="password"
             placeholder={tokenPlaceholder}
-            className="h-10 w-full rounded-xl border border-zinc-700 bg-black/35 px-3 text-xs text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-blue-500"
+            className="h-10 w-full rounded-2xl border border-white/10 bg-white/[0.055] px-4 text-sm text-white/86 outline-none placeholder:text-white/32 focus:border-indigo-300/45 focus:bg-white/[0.075]"
           />
         </label>
         <button
           type="button"
           onClick={onPrepare}
-          disabled={!itemCount || status === "building"}
-          className="h-10 shrink-0 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+          disabled={!itemCount || status === "building" || bridgeNeedsReload}
+          className="h-10 shrink-0 rounded-2xl bg-emerald-500 px-4 text-sm font-semibold text-white shadow-lg shadow-emerald-100/70 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/28"
         >
-          {status === "building" ? "投递中" : itemCount ? `${isBridgeOnline ? "自动写入" : "投递待写入"} · ${itemCount} 个` : "画布为空"}
+          {bridgeNeedsReload ? "先重载插件" : status === "building" ? "写入中" : itemCount ? `写入 Figma · ${itemCount}` : "先生成图标"}
         </button>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 text-xs">
+          <Badge tone={isBridgeCurrent ? "green" : "amber"}>{isBridgeCurrent ? "插件在线" : bridgeNeedsReload ? "插件需重载" : "插件未连接"}</Badge>
+          <Badge tone={statusTone}>{statusLabel}</Badge>
           <button
             type="button"
             onClick={onCopyJson}
             disabled={!hasJsonSpec}
-            className="h-10 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 text-xs font-semibold text-emerald-100 transition hover:border-emerald-300 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-950 disabled:text-zinc-600"
+            className="h-10 rounded-2xl border border-white/10 bg-white/[0.055] px-3 font-semibold text-white/58 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 disabled:hidden"
           >
-            {jsonCopyStatus === "copied" ? "已复制 JSON" : "复制 JSON"}
+            {jsonCopyStatus === "copied" ? "已复制" : "JSON"}
           </button>
           <button
             type="button"
             onClick={onCopyScript}
             disabled={!hasScript}
-            className="h-10 rounded-xl border border-zinc-700 bg-zinc-950 px-3 text-xs font-semibold text-zinc-100 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:text-zinc-600"
+            className="h-10 rounded-2xl border border-white/10 bg-white/[0.055] px-3 font-semibold text-white/58 transition hover:border-slate-300 hover:bg-slate-100 hover:text-white/86 disabled:hidden"
           >
-            {scriptCopyStatus === "copied" ? "已复制脚本" : "复制执行器"}
+            {scriptCopyStatus === "copied" ? "已复制" : "执行器"}
           </button>
         </div>
       </div>
       <div className="mt-2 flex items-center justify-between gap-3 text-xs leading-5">
-        <p className="truncate text-zinc-500">
-          {message || "写入闭环：画布图标 → Icon Spec JSON → Figma Plugin / Connector 创建可编辑 native nodes，不导入 SVG。"}
+        <p className="truncate text-white/42">
+          {message || "交付方式：画布图标 → Icon Spec JSON → Figma 插件创建可编辑 native nodes。"}
         </p>
-        <p className="shrink-0 text-zinc-600">
+        <p className="shrink-0 text-white/32">
           {writeJob
             ? `任务 ${writeJob.id}`
-            : isBridgeOnline
+            : bridgeNeedsReload
+              ? "检测到旧版插件；请关闭后重新运行开发插件，再创建写入任务。"
+              : isBridgeCurrent
               ? "插件桥已连接；网页投递后会自动写入当前 Figma 文件。"
-              : "请先打开 Figma 插件桥；未连接时任务会排队等待。"}
+              : "没连接插件也能先预览和整理图标。"}
         </p>
       </div>
     </section>
+  );
+}
+
+function AccountTrigger({ user, hasSavedToken, onClick }: { user?: AuthUser | null; hasSavedToken: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-9 items-center gap-2 rounded-full border border-white/10 bg-white/[0.055] px-3 text-xs text-white/68 transition hover:border-indigo-300/35 hover:bg-white/[0.09] hover:text-white"
+      title={user ? "账户与 Figma 凭据" : "登录账户"}
+    >
+      <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${user ? "bg-indigo-400/80 text-white" : "bg-white/10 text-white/60"}`}>
+        {user ? user.email.slice(0, 1).toUpperCase() : "·"}
+      </span>
+      <span className="max-w-[150px] truncate">{user ? user.email : "登录"}</span>
+      {user && hasSavedToken ? <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" title="Figma Token 已加密保存" /> : null}
+    </button>
+  );
+}
+
+function AccountDialog({
+  open,
+  user,
+  figma,
+  onClose,
+  onAuthenticated,
+  onLogout,
+  onDeleteToken,
+}: {
+  open: boolean;
+  user?: AuthUser | null;
+  figma: FigmaCredentialStatus;
+  onClose: () => void;
+  onAuthenticated: (user: AuthUser, figma: FigmaCredentialStatus) => Promise<void>;
+  onLogout: () => Promise<void>;
+  onDeleteToken: () => Promise<void>;
+}) {
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!open) return null;
+
+  async function submitAuth(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, mode }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as { user?: AuthUser; message?: string };
+      if (!response.ok || !payload.user) throw new Error(payload.message || "登录失败。");
+      const sessionResponse = await fetch("/api/auth/session", { cache: "no-store" });
+      const session = (await sessionResponse.json().catch(() => ({}))) as { figma?: FigmaCredentialStatus };
+      await onAuthenticated(payload.user, session.figma ?? { hasToken: false });
+      setPassword("");
+      setMessage(payload.message || "已登录。");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "登录失败。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function deleteToken() {
+    setIsSubmitting(true);
+    try {
+      await onDeleteToken();
+      setMessage("已删除后端保存的 Figma Token。");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/65 p-5 backdrop-blur-md" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="w-full max-w-md rounded-[28px] border border-white/12 bg-[#202124] p-6 text-white shadow-2xl shadow-black/50">
+        {user ? (
+          <>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-200/60">Account</p>
+                <h2 className="mt-2 text-xl font-semibold">{user.email}</h2>
+              </div>
+              <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/7 text-white/55 hover:bg-white/12 hover:text-white" aria-label="关闭">×</button>
+            </div>
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-white/76">Figma 访问令牌</span>
+                <span className={`rounded-full px-2 py-1 text-[11px] ${figma.hasToken ? "bg-emerald-400/12 text-emerald-200" : "bg-white/8 text-white/45"}`}>
+                  {figma.hasToken ? "已加密保存" : "未保存"}
+                </span>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-white/42">
+                {figma.hasToken ? `${figma.maskedToken} · 仅后端可解密使用` : "填写 Figma Token 后，系统会在登录账户下自动加密保存。"}
+              </p>
+              {figma.hasToken ? (
+                <button type="button" onClick={() => void deleteToken()} disabled={isSubmitting} className="mt-4 text-xs font-semibold text-red-200/75 hover:text-red-100 disabled:opacity-40">
+                  删除已保存 Token
+                </button>
+              ) : null}
+            </div>
+            {message ? <p className="mt-4 text-xs leading-5 text-emerald-200/80">{message}</p> : null}
+            <button type="button" onClick={() => void onLogout()} className="mt-6 h-10 w-full rounded-2xl border border-white/10 bg-white/[0.055] text-sm font-semibold text-white/68 transition hover:bg-white/10 hover:text-white">退出登录</button>
+          </>
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-200/60">IconOps account</p>
+                <h2 className="mt-2 text-xl font-semibold">登录后保存 Figma 连接</h2>
+                <p className="mt-2 text-sm leading-6 text-white/45">Token 会加密保存在服务端，刷新和重新打开网站后可继续使用。</p>
+              </div>
+              <button type="button" onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/7 text-white/55 hover:bg-white/12 hover:text-white" aria-label="关闭">×</button>
+            </div>
+            <div className="mt-6 flex rounded-xl border border-white/8 bg-white/[0.035] p-1 text-xs">
+              <button type="button" onClick={() => setMode("login")} className={`flex-1 rounded-lg py-2 transition ${mode === "login" ? "bg-white/10 text-white" : "text-white/45 hover:text-white/70"}`}>登录</button>
+              <button type="button" onClick={() => setMode("register")} className={`flex-1 rounded-lg py-2 transition ${mode === "register" ? "bg-white/10 text-white" : "text-white/45 hover:text-white/70"}`}>创建账户</button>
+            </div>
+            <form className="mt-5 space-y-3" onSubmit={(event) => void submitAuth(event)}>
+              <label className="block">
+                <span className="mb-1.5 block text-xs text-white/48">邮箱</span>
+                <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="email" required placeholder="you@company.com" className="h-11 w-full rounded-2xl border border-white/10 bg-white/[0.055] px-4 text-sm text-white outline-none placeholder:text-white/25 focus:border-indigo-300/45" />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs text-white/48">密码</span>
+                <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={8} placeholder="至少 8 位" className="h-11 w-full rounded-2xl border border-white/10 bg-white/[0.055] px-4 text-sm text-white outline-none placeholder:text-white/25 focus:border-indigo-300/45" />
+              </label>
+              {message ? <p className="text-xs leading-5 text-red-200/80">{message}</p> : null}
+              <button type="submit" disabled={isSubmitting} className="h-11 w-full rounded-2xl bg-indigo-500 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 disabled:opacity-45">
+                {isSubmitting ? "处理中…" : mode === "login" ? "登录并继续" : "创建并登录"}
+              </button>
+            </form>
+          </>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -3975,9 +4560,9 @@ function NumberSlider({
   const safeValue = clampNumber(Number.isFinite(value) ? value : min, min, max);
 
   return (
-    <label className="rounded border border-zinc-700 bg-[#18181b] p-3 text-sm">
+    <label className="rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-sm shadow-slate-200/50">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-xs text-zinc-500">{label}</span>
+        <span className="text-xs text-white/42">{label}</span>
         <input
           type="number"
           min={min}
@@ -3986,7 +4571,7 @@ function NumberSlider({
           disabled={disabled}
           value={safeValue}
           onChange={(event) => onChange(clampNumber(Number(event.target.value), min, max))}
-          className="w-16 rounded border border-zinc-700 bg-black px-2 py-1 text-right font-mono text-xs text-zinc-200 outline-none disabled:cursor-not-allowed disabled:text-zinc-600"
+          className="w-16 rounded-lg border border-white/10 bg-white/[0.055] px-2 py-1 text-right font-mono text-xs text-white/70 outline-none disabled:cursor-not-allowed disabled:text-white/32"
         />
       </div>
       <input
@@ -3999,7 +4584,7 @@ function NumberSlider({
         onChange={(event) => onChange(clampNumber(Number(event.target.value), min, max))}
         className="h-1.5 w-full cursor-pointer accent-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
       />
-      <div className="mt-1 flex justify-between font-mono text-xs text-zinc-600">
+      <div className="mt-1 flex justify-between font-mono text-xs text-white/32">
         <span>{min}</span>
         <span>{max}</span>
       </div>
@@ -4031,10 +4616,10 @@ function ColorPickerField({
   }
 
   return (
-    <label className="block rounded border border-zinc-700 bg-[#18181b] p-3 text-sm">
+    <label className="block rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-sm shadow-slate-200/50">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-xs text-zinc-500">{label}</span>
-        <span className="font-mono text-xs text-zinc-500">{safeValue === defaultTeamIconColor ? "团队默认" : "自定义"}</span>
+        <span className="text-xs text-white/42">{label}</span>
+        <span className="font-mono text-xs text-white/42">{safeValue === defaultTeamIconColor ? "团队默认" : "自定义"}</span>
       </div>
       <div className="grid grid-cols-[36px_1fr] gap-2">
         <input
@@ -4042,7 +4627,7 @@ function ColorPickerField({
           disabled={disabled}
           value={safeValue}
           onChange={(event) => commitColor(event.target.value)}
-          className="h-9 w-9 cursor-pointer rounded-lg border border-zinc-700 bg-black p-1 disabled:cursor-not-allowed disabled:opacity-40"
+          className="h-9 w-9 cursor-pointer rounded-xl border border-slate-200 bg-white p-1 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label={`${label}取色器`}
         />
         <input
@@ -4056,7 +4641,7 @@ function ColorPickerField({
               onChange(normalizeHexColor(nextValue));
             }
           }}
-          className="h-9 w-full rounded border border-zinc-700 bg-black px-2 font-mono text-xs text-zinc-200 outline-none disabled:cursor-not-allowed disabled:text-zinc-600"
+          className="h-9 w-full rounded-xl border border-white/10 bg-white/[0.055] px-2 font-mono text-xs text-white/70 outline-none disabled:cursor-not-allowed disabled:text-white/32"
           aria-label={`${label}色值`}
         />
       </div>
@@ -4070,8 +4655,8 @@ function ColorPickerField({
               type="button"
               disabled={disabled}
               onClick={() => commitColor(color)}
-              className={`h-6 rounded-md border transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                isSelected ? "border-blue-300 ring-2 ring-blue-500/25" : "border-zinc-700 hover:border-zinc-400"
+              className={`h-6 rounded-lg border transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                isSelected ? "border-blue-300 ring-2 ring-blue-500/20" : "border-slate-200 hover:border-slate-400"
               }`}
               style={{ backgroundColor: color }}
               title={color === defaultTeamIconColor ? `${color} · 团队规范色` : color}
@@ -4080,7 +4665,7 @@ function ColorPickerField({
           );
         })}
       </div>
-      {helperText ? <p className="mt-2 text-xs leading-5 text-zinc-500">{helperText}</p> : null}
+      {helperText ? <p className="mt-2 text-xs leading-5 text-white/42">{helperText}</p> : null}
     </label>
   );
 }
@@ -4142,15 +4727,13 @@ function SourceLibraryPanel({
 
   if (!candidates.length && !loading && !message) {
     return (
-      <div className="flex min-h-[64px] items-center justify-between gap-3 border-b border-zinc-800 bg-[#151518]/95 px-4 py-2">
+      <div className="iconops-source-drawer iconops-source-drawer-empty mx-4 mt-3 flex min-h-[60px] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#252525]/92 px-4 py-3 shadow-2xl shadow-black/30 backdrop-blur-xl">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-100">参考图标库</span>
-            <span className="rounded-full border border-zinc-700 bg-black/20 px-2 py-0.5 text-xs text-zinc-400">
-              随对话打开
-            </span>
+            <span className="text-sm font-semibold text-white/86">来源图标库</span>
+            <Badge tone="neutral">按需求出现</Badge>
           </div>
-          <p className="mt-0.5 truncate text-xs text-zinc-500">
+          <p className="mt-0.5 truncate text-xs text-white/42">
             说出图标需求后，我会自动按当前语义检索；也可以手动找参考。
           </p>
         </div>
@@ -4165,19 +4748,19 @@ function SourceLibraryPanel({
               }
             }}
             placeholder="直接搜索图标，如：筛选 / download / share"
-            className="h-10 min-w-0 flex-1 rounded-xl border border-zinc-700 bg-black/30 px-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-blue-400"
+            className="h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.055] px-3 text-sm text-white/86 outline-none transition placeholder:text-white/32 focus:border-indigo-300/45 focus:bg-white/[0.075]"
           />
           <button
             type="button"
             onClick={() => onSearchCurrentQuery(query)}
-            className="rounded-lg bg-blue-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-400"
+            className="rounded-xl bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400"
           >
             按当前需求找
           </button>
           <button
             type="button"
             onClick={onToggleCollapsed}
-            className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition hover:border-blue-400 hover:text-blue-100"
+            className="rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white/58 transition hover:bg-white/[0.08] hover:text-white"
           >
             展开面板
           </button>
@@ -4188,26 +4771,17 @@ function SourceLibraryPanel({
 
   if (collapsed) {
     return (
-      <div className="flex min-h-[52px] items-center justify-between gap-3 border-b border-zinc-800 bg-[#151518]/95 px-4 py-2">
+      <div className="iconops-source-drawer iconops-source-drawer-collapsed mx-4 mt-3 flex min-h-[52px] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#252525]/92 px-4 py-3 shadow-2xl shadow-black/30 backdrop-blur-xl">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-100">来源图标选择</span>
-            <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-xs text-blue-100">
-              {sourceLibraryLabel(activeTab)} · {loading ? "检索中" : `${candidates.length} 个结果`}
-            </span>
-            <span className="rounded-full border border-zinc-700 bg-black/20 px-2 py-0.5 text-xs text-zinc-400">
-              {sourceLibraryTruthLabel(activeTab, importedState)}
-            </span>
-            <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-100">
-              训练库 {teamLibrarySummary.count}
-            </span>
+            <span className="text-sm font-semibold text-white/86">来源图标库</span>
+            <Badge tone="blue">{sourceLibraryLabel(activeTab)} · {loading ? "检索中" : `${candidates.length} 个`}</Badge>
+            <Badge tone="green">训练库 {teamLibrarySummary.count}</Badge>
             {selectedCandidateIds.length ? (
-              <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-100">
-                跨库已选 {selectedCandidateIds.length}
-              </span>
+              <Badge tone="green">已选 {selectedCandidateIds.length}</Badge>
             ) : null}
           </div>
-          <p className="mt-0.5 truncate text-xs text-zinc-500">{message || `已按“${query || "当前需求"}”同步参考；AI 预览仍在画布中。`}</p>
+          <p className="mt-0.5 truncate text-xs text-white/42">{message || `已按“${query || "当前需求"}”同步参考；AI 预览仍在画布中。`}</p>
         </div>
         <div className="flex min-w-[520px] shrink-0 items-center gap-2">
           <div className="relative min-w-0 flex-1">
@@ -4221,13 +4795,13 @@ function SourceLibraryPanel({
                 }
               }}
               placeholder={`搜索${sourceLibraryLabel(activeTab)}，如：分享 / filter / download`}
-              className="h-9 w-full rounded-lg border border-zinc-700 bg-black/30 px-3 pr-16 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-blue-400"
+              className="h-9 w-full rounded-xl border border-white/10 bg-white/[0.055] px-3 pr-16 text-sm text-white/86 outline-none transition placeholder:text-white/32 focus:border-indigo-300/45 focus:bg-white/[0.075]"
             />
             <button
               type="button"
               onClick={() => onSearchCurrentQuery(query)}
               disabled={loading}
-              className="absolute right-1 top-1 h-7 rounded-md bg-blue-500 px-2.5 text-xs font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
+              className="absolute right-1 top-1 h-7 rounded-lg bg-indigo-500 px-2.5 text-xs font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/28"
             >
               搜索
             </button>
@@ -4236,7 +4810,7 @@ function SourceLibraryPanel({
             type="button"
             onClick={onAddSelectedCandidates}
             disabled={!selectedCandidateIds.length || loading}
-            className="rounded-lg bg-blue-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
+            className="rounded-xl bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/28"
           >
             批量放入 {selectedCandidateIds.length || ""}
           </button>
@@ -4244,7 +4818,7 @@ function SourceLibraryPanel({
             <button
               type="button"
               onClick={onClearSelectedCandidates}
-              className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition hover:border-red-400 hover:text-red-100"
+              className="rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white/58 transition hover:bg-red-500/12 hover:text-red-200"
             >
               清空选择
             </button>
@@ -4252,7 +4826,7 @@ function SourceLibraryPanel({
           <button
             type="button"
             onClick={onToggleCollapsed}
-            className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition hover:border-blue-400 hover:text-blue-100"
+            className="rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2 text-sm text-white/58 transition hover:bg-white/[0.08] hover:text-white"
           >
             展开选择
           </button>
@@ -4262,21 +4836,15 @@ function SourceLibraryPanel({
   }
 
   return (
-    <div className="border-b border-zinc-800 bg-[#151518]/95 p-4">
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+    <div className="iconops-source-drawer border border-white/10 p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-zinc-100">来源图标选择</h3>
-            <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-xs text-blue-100">意图触发</span>
-            <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-100">
-              团队训练库 {teamLibrarySummary.count}
-            </span>
-            <span className="rounded-full border border-zinc-700 bg-black/20 px-2 py-0.5 text-xs text-zinc-400">
-              {sourceLibraryTruthLabel(activeTab, importedState)}
-            </span>
+            <h3 className="text-sm font-semibold text-white/86">参考图标</h3>
+            <Badge tone="blue">{visibleCandidates.length} results</Badge>
           </div>
-          <p className="mt-1 text-sm text-zinc-500">
-            {message || `正在按“${query || "当前需求"}”检索；放入画布后会先经过 icon-gen-promax 团队规范处理器。`}
+          <p className="mt-1 text-xs text-white/38">
+            {message || `按“${query || "当前需求"}”检索，拖入画布后自动套团队规范。`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -4284,21 +4852,21 @@ function SourceLibraryPanel({
             type="button"
             onClick={onLoadTeamLibrary}
             disabled={teamLibraryStatus === "loading" || teamLibraryStatus === "training"}
-            className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100 transition hover:border-emerald-400 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-600"
+            className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-white/50 transition hover:bg-white/[0.07] hover:text-white disabled:cursor-not-allowed disabled:text-white/24"
           >
             {teamLibraryStatus === "loading" ? "加载中" : teamLibraryStatus === "training" ? "训练中" : "查团队库"}
           </button>
           <button
             type="button"
             onClick={onToggleCollapsed}
-            className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition hover:border-blue-400 hover:text-blue-100"
+            className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-white/50 transition hover:bg-white/[0.07] hover:text-white"
           >
             收起面板
           </button>
           <button
             type="button"
             onClick={onSelectVisibleCandidates}
-            className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition hover:border-blue-400 hover:text-blue-100"
+            className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-white/50 transition hover:bg-white/[0.07] hover:text-white"
           >
             全选当前结果
           </button>
@@ -4306,7 +4874,7 @@ function SourceLibraryPanel({
             <button
               type="button"
               onClick={onClearSelectedCandidates}
-              className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition hover:border-red-400 hover:text-red-100"
+              className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-white/50 transition hover:bg-red-500/12 hover:text-red-200"
             >
               清空选择
             </button>
@@ -4315,7 +4883,7 @@ function SourceLibraryPanel({
             type="button"
             onClick={onAddSelectedCandidates}
             disabled={!selectedCandidateIds.length || loading}
-            className="rounded-lg bg-blue-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
+            className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-white/85 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/28"
           >
             批量放到画布 {selectedCandidateIds.length ? `(${selectedCandidateIds.length})` : ""}
           </button>
@@ -4334,19 +4902,19 @@ function SourceLibraryPanel({
               }
             }}
             placeholder={`在${sourceLibraryLabel(activeTab)}中搜索，例如：筛选、下载、share`}
-            className="h-10 w-full rounded-xl border border-zinc-700 bg-black/30 px-3 pr-20 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-blue-400"
+            className="h-10 w-full rounded-2xl border border-white/10 bg-white/[0.035] px-3 pr-20 text-sm text-white outline-none transition placeholder:text-white/26 focus:border-white/24 focus:bg-white/[0.055]"
           />
           <button
             type="button"
             onClick={() => onSearchCurrentQuery(query)}
             disabled={loading}
-            className="absolute right-1 top-1 h-8 rounded-lg bg-blue-500 px-3 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
+            className="absolute right-1 top-1 h-8 rounded-xl bg-white px-3 text-xs font-semibold text-black transition hover:bg-white/85 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/28"
           >
             搜索
           </button>
         </div>
-        <span className="text-xs text-zinc-500">“全部”会跨 Lucide / IconPark / Tabler / Phosphor 与已导入团队库检索。</span>
-        {teamLibraryMessage ? <span className="text-xs text-zinc-600">{teamLibraryMessage}</span> : null}
+        <span className="text-xs text-white/30">全部会跨外部库与团队库检索。</span>
+        {teamLibraryMessage ? <span className="text-xs text-white/26">{teamLibraryMessage}</span> : null}
       </div>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -4357,34 +4925,34 @@ function SourceLibraryPanel({
             <button
               key={tab}
               onClick={() => onTabChange(tab)}
-              className={`rounded-full border px-3 py-1.5 text-sm transition ${
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                 isActive
-                  ? "border-blue-400 bg-blue-500/15 text-blue-100"
-                  : "border-zinc-700 bg-black/20 text-zinc-400 hover:border-blue-400 hover:text-blue-100"
+                  ? "border-white/22 bg-white/[0.10] text-white"
+                  : "border-white/10 bg-white/[0.025] text-white/42 hover:border-white/18 hover:text-white/78"
               }`}
             >
               {sourceLibraryLabel(tab)}
             </button>
           );
         })}
-        <span className="text-xs text-zinc-600">
-          {loading ? "检索中…" : `${visibleCandidates.length} 个结果`}
-          {selectedCandidateIds.length ? ` · 跨 Tab 已选 ${selectedCandidateIds.length}` : ""}
+        <span className="text-xs text-white/30">
+          {loading ? "检索中…" : `${visibleCandidates.length} results`}
+          {selectedCandidateIds.length ? ` · selected ${selectedCandidateIds.length}` : ""}
         </span>
       </div>
 
       <div className="max-h-[244px] overflow-y-auto pr-1">
         {loading ? (
-          <div className="rounded-2xl border border-dashed border-zinc-700 bg-black/20 p-6 text-sm text-zinc-400">
+          <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.035] p-6 text-sm text-white/42">
             正在连接 {sourceLibraryLabel(activeTab)} 来源并套团队规范预处理…
           </div>
         ) : null}
         {!loading && !visibleCandidates.length ? (
-          <div className="rounded-2xl border border-dashed border-zinc-700 bg-black/20 p-6 text-sm leading-6 text-zinc-400">
+          <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.035] p-6 text-sm leading-6 text-white/42">
             还没有候选。Figma 团队库需要先粘贴画布/节点链接；IconPark / Lucide / Tabler / Phosphor 使用官方 npm 包索引；Iconfont 需要先粘贴项目 Symbol JS 链接。
           </div>
         ) : null}
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-2.5">
           {visibleCandidates.map((candidate) => {
             const isSelected = selectedSource?.id === candidate.id;
             const isBatchSelected = selectedCandidateIds.includes(candidate.id);
@@ -4398,47 +4966,45 @@ function SourceLibraryPanel({
                   onToggleCandidate(candidate.id);
                 }}
                 onDragStart={(event) => onCandidateDragStart(event, candidate)}
-                className={`group rounded-2xl border p-3 text-left transition ${
+                className={`group relative flex min-h-[132px] flex-col items-center justify-center rounded-2xl border px-3 py-3 text-center transition duration-200 ${
                   isSelected || isBatchSelected
-                    ? "border-blue-400 bg-blue-500/15 shadow-lg shadow-blue-500/10"
-                    : "border-zinc-800 bg-[#1b1b20] hover:border-blue-400 hover:bg-blue-500/10"
+                    ? "border-indigo-300/60 bg-indigo-400/[0.10] ring-1 ring-indigo-200/20"
+                    : "border-white/8 bg-white/[0.025] hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.055]"
                 }`}
                 title="点击卡片即可选择；也可以拖到中间画布，直接套团队规范后放置"
               >
-                <div className="mb-3 flex items-start justify-between gap-2">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-zinc-700 bg-white text-[#0F1218] shadow-inner shadow-black/10">
-                    <div className="[&_svg]:h-9 [&_svg]:w-9 [&_svg]:text-[#0F1218]" dangerouslySetInnerHTML={{ __html: candidate.normalizedSvg }} />
-                  </div>
-                  <span
-                    role="checkbox"
-                    aria-checked={isBatchSelected}
-                    tabIndex={0}
-                    onClick={(event) => {
+                <span
+                  role="checkbox"
+                  aria-checked={isBatchSelected}
+                  tabIndex={0}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleCandidate(candidate.id);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
                       event.stopPropagation();
                       onToggleCandidate(candidate.id);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onToggleCandidate(candidate.id);
-                      }
-                    }}
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs ${
-                      isBatchSelected ? "border-blue-400 bg-blue-500 text-white" : "border-zinc-600 bg-zinc-950 text-transparent"
-                    }`}
-                  >
-                    ✓
-                  </span>
+                    }
+                  }}
+                  className={`absolute right-2 top-2 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] transition ${
+                    isBatchSelected ? "border-indigo-300 bg-indigo-300 text-black" : "border-white/12 bg-white/5 text-transparent group-hover:border-white/26"
+                  }`}
+                >
+                  ✓
+                </span>
+                <div className="mb-3 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-black/28 text-white/84 transition group-hover:border-white/18 group-hover:bg-white/[0.045]">
+                  <div className="[&_svg]:h-8 [&_svg]:w-8 [&_svg]:text-current" dangerouslySetInnerHTML={{ __html: candidate.normalizedSvg }} />
                 </div>
-
-                <div className="truncate text-sm font-semibold text-zinc-100">{candidate.name}</div>
-                <div className="mt-1 truncate text-xs text-zinc-500">
-                  {candidate.source} · {candidate.category}
+                <div className="max-w-full truncate text-xs font-medium text-white/82">{candidate.name}</div>
+                <div className="mt-1 max-w-full truncate text-[11px] text-white/32">
+                  {candidate.source} · {candidate.review.score}
                 </div>
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-xs text-blue-200">{candidate.review.score}/100</span>
-                  <span className="truncate text-xs text-zinc-600">{candidate.source === "phosphor-icons" ? "参考后转线性" : "套团队样式"}</span>
+                <div className="pointer-events-none absolute inset-x-2 bottom-2 translate-y-1 opacity-0 transition group-hover:translate-y-0 group-hover:opacity-100">
+                  <div className="truncate rounded-full bg-black/60 px-2 py-1 text-[10px] text-white/46">
+                    {candidate.source === "phosphor-icons" ? "参考后转线性" : "套团队样式"}
+                  </div>
                 </div>
               </button>
             );
@@ -4464,16 +5030,17 @@ function TeamSpecProcessorBar({
   const outputLabel = hasPreview ? "已生成团队样式预览" : "等待输入后处理";
 
   return (
-    <div className="flex h-full w-full items-center gap-4 bg-[#19191d] px-4">
-      <div className="min-w-[96px]">
-        <div className="text-xs text-zinc-500">团队规范处理器</div>
-        <div className="mt-1 text-sm font-semibold text-zinc-100">{inputLabel} → 统一输出</div>
+    <div className="flex h-full w-full items-center gap-4 bg-white px-4">
+      <div className="min-w-[180px]">
+        <div className="text-xs text-white/42">团队规范处理器</div>
+        <div className="mt-1 text-sm font-semibold text-white/86">{inputLabel}</div>
+        <div className="mt-0.5 text-xs text-white/32">统一成可交付团队图标</div>
       </div>
       <div className="flex min-w-0 flex-1 gap-2 overflow-hidden">
         {teamSpecRules.slice(0, 5).map((rule) => (
-          <div key={rule.label} title={`${rule.label}：${rule.description}`} className="min-w-[72px] rounded-lg border border-zinc-800 bg-black/25 px-2 py-1.5">
-            <div className="text-xs text-zinc-500">{rule.label}</div>
-            <div className="mt-0.5 truncate text-xs font-semibold text-zinc-100">{rule.value}</div>
+          <div key={rule.label} title={`${rule.label}：${rule.description}`} className="min-w-[76px] rounded-xl border border-white/10 bg-white/[0.055] px-3 py-2">
+            <div className="text-xs text-white/42">{rule.label}</div>
+            <div className="mt-0.5 truncate text-xs font-semibold text-white/86">{rule.value}</div>
           </div>
         ))}
       </div>
@@ -4507,11 +5074,11 @@ function BatchProductionPanel({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-zinc-700/80 bg-[#1b1b1f] p-3 shadow-2xl shadow-black/20">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xl shadow-slate-200/70">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold text-zinc-100">批量任务资料</div>
-            <div className="mt-1 text-xs leading-5 text-zinc-500">
+            <div className="text-sm font-semibold text-white/86">批量任务资料</div>
+            <div className="mt-1 text-xs leading-5 text-white/42">
               粘贴图标名、Figma 链接或需求文档，先识别清单，再批量进画布。
             </div>
           </div>
@@ -4520,34 +5087,34 @@ function BatchProductionPanel({
         <textarea
           value={input}
           onChange={(event) => onInputChange(event.target.value)}
-          className="h-28 w-full resize-none rounded-xl border border-zinc-800 bg-black/40 p-3 text-sm leading-5 text-zinc-200 outline-none placeholder:text-zinc-700 focus:border-blue-500"
+          className="h-28 w-full resize-none rounded-xl border border-white/10 bg-white/[0.055] p-3 text-sm leading-5 text-slate-800 outline-none placeholder:text-slate-300 focus:border-blue-500"
           placeholder={"例如：搜索、筛选、分享、收藏、下载\n也可以粘贴 Figma 画布链接、PRD 片段或 icon 清单"}
         />
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <button onClick={onParse} className="rounded bg-blue-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-400">
+          <button onClick={onParse} className="rounded bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400">
             识别清单
           </button>
           <button
             onClick={onQueue}
             disabled={!tasks.length}
-            className="rounded bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-500"
+            className="rounded bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/28"
           >
             放入画布
           </button>
         </div>
         <button
           onClick={onClear}
-          className="mt-2 w-full rounded border border-zinc-700 px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:border-zinc-500"
+          className="mt-2 w-full rounded border border-slate-200 px-3 py-2 text-xs font-semibold text-white/70 transition hover:border-slate-300"
         >
           清空批量资料
         </button>
       </div>
 
-      <div className="rounded-2xl border border-zinc-800 bg-[#18181b] p-3">
+      <div className="rounded-2xl border border-slate-200 bg-white p-3">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div>
-            <div className="text-sm font-semibold text-zinc-100">识别结果</div>
-            <div className="mt-1 text-xs text-zinc-500">
+            <div className="text-sm font-semibold text-white/86">识别结果</div>
+            <div className="mt-1 text-xs text-white/42">
               {tasks.length ? `已识别 ${tasks.length} 个，${matchedCount} 个有参考，${queuedCount} 个已进画布。` : "识别后这里会出现待生成图标清单。"}
             </div>
           </div>
@@ -4556,13 +5123,13 @@ function BatchProductionPanel({
         {tasks.length ? (
           <div className="max-h-64 space-y-2 overflow-auto pr-1">
             {tasks.map((task, index) => (
-              <div key={task.id} className="rounded-xl border border-zinc-800 bg-black/25 p-3">
+              <div key={task.id} className="rounded-xl border border-white/10 bg-white/[0.055] p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-zinc-100">
+                    <div className="truncate text-sm font-semibold text-white/86">
                       {index + 1}. {task.name}
                     </div>
-                    <div className="mt-1 text-xs text-zinc-500">
+                    <div className="mt-1 text-xs text-white/42">
                       {batchInputKindLabel(task.sourceKind)} · {task.candidateCount} 个参考
                     </div>
                   </div>
@@ -4571,16 +5138,16 @@ function BatchProductionPanel({
                   </Badge>
                 </div>
                 <div className="mt-3 flex items-center gap-2">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-800">
-                    <div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.min(100, task.bestScore)}%` }} />
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+                    <div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.min(100, task.bestScore)}%` }} />
                   </div>
-                  <span className="w-8 text-right font-mono text-xs text-zinc-500">{task.bestScore || "-"}</span>
+                  <span className="w-8 text-right font-mono text-xs text-white/42">{task.bestScore || "-"}</span>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-zinc-700 bg-black/20 p-4 text-xs leading-5 text-zinc-500">
+          <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.055] p-4 text-xs leading-5 text-white/42">
             批量模式不是聊天对话：这里负责“收集资料 → 识别清单 → 批量放入画布”。如果想逐个讨论语义，切回单个生成。
           </div>
         )}
@@ -4601,11 +5168,20 @@ function IconInstanceNode({
   onDragStart: (event: React.PointerEvent<HTMLDivElement>) => void;
 }) {
   const renderedPreviewSvg = instance.previewSvg;
+  const statusLabel = instance.previewVariantId
+    ? "AI"
+    : instance.sourcePreviewSvg
+      ? instance.sourceConversionStatus === "team_normalized"
+        ? "规范"
+        : instance.sourceConversionStatus === "reference_only"
+          ? "参考"
+          : "确认"
+      : undefined;
 
   return (
     <div
-      className={`absolute cursor-grab select-none rounded-2xl border bg-white p-4 shadow-2xl shadow-black/30 transition active:cursor-grabbing ${
-        selected ? "border-blue-400 ring-4 ring-blue-500/20" : "border-zinc-700 hover:border-blue-400"
+      className={`iconops-canvas-icon-card absolute cursor-grab select-none rounded-2xl border p-4 transition active:cursor-grabbing ${
+        selected ? "border-blue-400 ring-4 ring-blue-500/20" : "border-slate-200 hover:border-blue-400"
       }`}
       style={{
         left: instance.x,
@@ -4629,34 +5205,17 @@ function IconInstanceNode({
         selectedElementId="frame"
         onSelect={() => onSelect()}
       />
-      <div className="pointer-events-none absolute -bottom-7 left-0 max-w-[180px] truncate rounded border border-zinc-800 bg-[#18181b]/95 px-2 py-1 text-xs text-zinc-300">
+      <div className="pointer-events-none absolute left-1/2 top-[calc(100%+8px)] max-w-[118px] -translate-x-1/2 truncate rounded-lg border border-white/8 bg-black/28 px-2 py-1 text-center text-[11px] text-white/46 backdrop-blur-sm">
         {instance.name}
       </div>
       {instance.previewVariantId ? (
-        <div className="pointer-events-none absolute -left-2 -top-2 flex h-7 min-w-7 items-center justify-center rounded-full border border-blue-300 bg-blue-500 px-2 text-xs font-bold text-white shadow-lg shadow-blue-950/20">
+        <div className="pointer-events-none absolute -left-2 -top-2 flex h-7 min-w-7 items-center justify-center rounded-full border border-white/10 bg-indigo-500 px-2 text-xs font-bold text-white shadow-lg shadow-blue-950/20">
           {instance.optionId}-{instance.previewVariantId}
         </div>
       ) : null}
-      {instance.previewVariantId ? (
-        <div className="pointer-events-none absolute -right-2 -top-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-700">
-          AI 方案
-        </div>
-      ) : null}
-      {instance.sourcePreviewSvg ? (
-        <div
-          className={`pointer-events-none absolute -right-2 -top-2 rounded-full border px-2 py-0.5 text-xs font-semibold ${
-            instance.sourceConversionStatus === "team_normalized"
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
-              : instance.sourceConversionStatus === "reference_only"
-                ? "border-red-500/30 bg-red-500/10 text-red-700"
-                : "border-amber-500/30 bg-amber-500/10 text-amber-700"
-          }`}
-        >
-          {instance.sourceConversionStatus === "team_normalized"
-            ? "已套规范"
-            : instance.sourceConversionStatus === "reference_only"
-              ? "仅参考"
-              : "待确认"}
+      {statusLabel ? (
+        <div className="pointer-events-none absolute -right-2 -top-2 rounded-full border border-white/10 bg-black/30 px-2 py-0.5 text-[11px] font-semibold text-white/58 backdrop-blur-sm">
+          {statusLabel}
         </div>
       ) : null}
     </div>
@@ -4689,6 +5248,26 @@ function buildAssistantSummary(params: { decision: AgentDecision; phase: Workflo
 
 function isNewBriefMessage(message: string) {
   return /做一个|要一个|生成|给我|需要|create|generate|icon|图标|收藏|分享|搜索|筛选|下载|上传|播放|评论|点赞|投稿|朗读|互动/.test(message.toLowerCase());
+}
+
+function isBriefContinuationMessage(message: string) {
+  return /用于|用在|出现在|放在|位置|工具栏|内容列表|数据报表|批量操作|强调|表达|突出|普通下载|下载文件|导出数据/.test(message);
+}
+
+function mergeBriefContinuation(message: string, fallback: IconBrief): IconBrief {
+  const inferredGlyphKind = inferGlyphKind(message);
+  const glyphKind = inferredGlyphKind === "generic" ? fallback.glyphKind : inferredGlyphKind;
+  const profile = glyphProfiles[glyphKind];
+
+  return {
+    sourceText: `${fallback.sourceText}；${message}`,
+    concept: profile.concept,
+    label: profile.label,
+    semanticName: profile.semanticName,
+    context: inferContext(message, fallback.context),
+    emphasis: inferEmphasis(message, fallback.emphasis),
+    glyphKind,
+  };
 }
 
 function isClearlyNonIconMessage(message: string) {
@@ -4750,14 +5329,18 @@ function splitTypewriterText(text: string) {
 
 export function IconWorkbench() {
   const [brief, setBrief] = useState<IconBrief>(defaultBrief);
+  const [hasEnteredWorkbench, setHasEnteredWorkbench] = useState(false);
   const [workbenchMode, setWorkbenchMode] = useState<WorkbenchMode>("chat");
   const [input, setInput] = useState("");
+  const [selectedTeamSpecLibraryId, setSelectedTeamSpecLibraryId] = useState<TeamSpecSkillId>("baijiahao");
+  const [landingPointer, setLandingPointer] = useState({ x: 50, y: 50 });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [phase, setPhase] = useState<WorkflowPhase>("brief");
   const [activeTab, setActiveTab] = useState<InspectorTab>("properties");
   const [agentMode, setAgentMode] = useState<AgentMode>("fallback");
   const [isThinking, setIsThinking] = useState(false);
   const [approvedPreview, setApprovedPreview] = useState(false);
+  const [approvedPreviewWarningIds, setApprovedPreviewWarningIds] = useState<string[]>([]);
   const [selectedOptionId, setSelectedOptionId] = useState<SemanticOption["id"] | undefined>();
   const [selectedPreviewVariantId, setSelectedPreviewVariantId] = useState<PreviewVariantId | undefined>();
   const [activeSemanticOptions, setActiveSemanticOptions] = useState<SemanticOption[]>(() => buildSemanticOptions(defaultBrief));
@@ -4789,9 +5372,11 @@ export function IconWorkbench() {
   const [selectedSource, setSelectedSource] = useState<SourceCandidate | undefined>();
   const [canvasSourceCandidates, setCanvasSourceCandidates] = useState<SourceCandidate[]>([]);
   const [sourceLibraryTab, setSourceLibraryTab] = useState<SourceLibraryTab>("lucide");
-  const [isSourcePanelCollapsed, setIsSourcePanelCollapsed] = useState(false);
+  const [isSourcePanelCollapsed, setIsSourcePanelCollapsed] = useState(true);
+  const [isFigmaSetupExpanded, setIsFigmaSetupExpanded] = useState(false);
   const [sourceLoading, setSourceLoading] = useState(false);
   const [sourceMessage, setSourceMessage] = useState("");
+  const [sourceDecision, setSourceDecision] = useState<SourceDecision | undefined>();
   const [selectedSourceCandidates, setSelectedSourceCandidates] = useState<SourceCandidate[]>([]);
   const [teamLibraryAssets, setTeamLibraryAssets] = useState<TeamLibraryAsset[]>([]);
   const [teamLibrarySummary, setTeamLibrarySummary] = useState<TeamLibrarySummary>({ count: 0 });
@@ -4799,9 +5384,12 @@ export function IconWorkbench() {
   const [teamLibraryTrainingMessage, setTeamLibraryTrainingMessage] = useState("");
   const [isChatPinnedToLatest, setIsChatPinnedToLatest] = useState(true);
   const [figmaSessionToken, setFigmaSessionToken] = useState("");
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [figmaCredentialStatus, setFigmaCredentialStatus] = useState<FigmaCredentialStatus>({ hasToken: false });
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [pendingFigmaUrl, setPendingFigmaUrl] = useState("");
   const [pendingFigmaQuery, setPendingFigmaQuery] = useState("");
-  const [isSpecCardCollapsed, setIsSpecCardCollapsed] = useState(false);
+  const [isSpecCardCollapsed, setIsSpecCardCollapsed] = useState(true);
   const [canvasLayers, setCanvasLayers] = useState<CanvasLayer[]>([{ id: defaultCanvasLayerId, name: "画布 1", instances: [] }]);
   const [activeCanvasLayerId, setActiveCanvasLayerId] = useState(defaultCanvasLayerId);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | undefined>();
@@ -4818,6 +5406,56 @@ export function IconWorkbench() {
   const conversationIdRef = useRef(0);
   const typewriterTimersRef = useRef<number[]>([]);
   const messageIdCounterRef = useRef(0);
+
+  async function persistFigmaToken(token: string, allowWithoutKnownUser = false) {
+    if (!token.trim() || (!authUser && !allowWithoutKnownUser)) return false;
+    const response = await fetch("/api/account/figma-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: token.trim() }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as { figma?: FigmaCredentialStatus };
+    if (!response.ok) return false;
+    setFigmaCredentialStatus(payload.figma ?? { hasToken: true });
+    return true;
+  }
+
+  async function handleAuthenticated(user: AuthUser, figma: FigmaCredentialStatus) {
+    setAuthUser(user);
+    setFigmaCredentialStatus(figma);
+    const pendingToken = figmaSessionToken.trim() || figmaWriteToken.trim();
+    if (pendingToken) await persistFigmaToken(pendingToken, true);
+    setIsAuthDialogOpen(false);
+  }
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setAuthUser(null);
+    setFigmaCredentialStatus({ hasToken: false });
+    setFigmaSessionToken("");
+    setFigmaWriteToken("");
+    setIsAuthDialogOpen(false);
+  }
+
+  async function handleDeleteFigmaToken() {
+    const response = await fetch("/api/account/figma-token", { method: "DELETE" });
+    if (response.ok) setFigmaCredentialStatus({ hasToken: false });
+  }
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/auth/session", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { authenticated?: boolean; user?: AuthUser; figma?: FigmaCredentialStatus }) => {
+        if (!active) return;
+        setAuthUser(payload.authenticated && payload.user ? payload.user : null);
+        setFigmaCredentialStatus(payload.figma ?? { hasToken: false });
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const semanticOptions = activeSemanticOptions.length ? activeSemanticOptions : buildSemanticOptions(brief);
   const selectedOption = semanticOptions.find((option) => option.id === selectedOptionId);
@@ -4839,11 +5477,20 @@ export function IconWorkbench() {
     iconfont: importedIconfontIcons.some((asset) => asset.source === "iconfont-symbol" || asset.category === "iconfont"),
     any: importedIconfontIcons.length > 0,
   };
+  const selectedTeamSpecLibrary =
+    teamSpecSkillRegistry.find((library) => library.id === selectedTeamSpecLibraryId) ?? teamSpecSkillRegistry[0];
+  const activeOutputProfile = selectedTeamSpecLibrary.outputProfile;
   const visibleTeamLibrarySummary = {
     ...teamLibrarySummary,
     count: teamLibraryAssets.length || teamLibrarySummary.count,
   };
   const selectedInstance = canvasInstances.find((instance) => instance.id === selectedInstanceId);
+  const selectedInstanceQualityIssues = selectedInstance ? getCanvasInstanceQualityIssues(selectedInstance, activeOutputProfile) : [];
+  const selectedInstanceApprovedIssueIds = new Set(selectedInstance?.qualityApprovedIssueIds ?? []);
+  const selectedInstancePendingQualityIssues = selectedInstanceQualityIssues.filter(
+    (issue) => issue.severity === "blocker" || !selectedInstanceApprovedIssueIds.has(issue.id),
+  );
+  const selectedInstanceBlockers = selectedInstanceQualityIssues.filter((issue) => issue.severity === "blocker");
   const selectedInstanceElement =
     selectedInstance?.elements.find((element) => element.id === selectedElementId) ??
     selectedInstance?.elements.find((element) => element.type !== "frame" && element.type !== "preview");
@@ -4858,26 +5505,114 @@ export function IconWorkbench() {
   const userEditableLayers = canvasElements.filter((element) => element.type !== "frame" && element.type !== "preview");
   const usesGeneratedPreview = showPreview && Boolean(selectedOptionId);
   const previewHasQualityIssues = showPreview && previewReview.blockers.length > 0;
-  const specWarnings = [
-    !usesGeneratedPreview && bookmarkElement.stroke !== "#0F1218" ? "颜色 should stay #0F1218 for comic platform output" : undefined,
-    !usesGeneratedPreview && bookmarkElement.strokeWidth !== 2 ? "线宽 should return to 2 before production handoff" : undefined,
-    !usesGeneratedPreview && (bookmarkElement.radius ?? 4) !== 4 ? "default corner 圆角 is 4px; smaller radii need visual justification" : undefined,
-    !usesGeneratedPreview && (bookmarkElement.x < 2 || bookmarkElement.y < 2) ? "shape is touching the 2px safe-zone" : undefined,
-    !usesGeneratedPreview && (bookmarkElement.width > 20 || bookmarkElement.height > 20) ? "shape exceeds the 20px live-area" : undefined,
-    !usesGeneratedPreview && plusElement.visible && (plusElement.x - (bookmarkElement.x + bookmarkElement.width) < 1.5)
-      ? "plus badge is too close to bookmark outline; keep at least ~2px visual gap"
+  const logicalProfileColor = activeOutputProfile.color;
+  const logicalProfileStrokeWidth = activeOutputProfile.strokeWidth / activeOutputProfile.scale;
+  const logicalProfilePadding = activeOutputProfile.padding / activeOutputProfile.scale;
+  const logicalProfileLiveArea = activeOutputProfile.masterSize / activeOutputProfile.scale - logicalProfilePadding * 2;
+  const previewQualityIssues = ([
+    !usesGeneratedPreview && ![defaultTeamIconColor, logicalProfileColor].includes(bookmarkElement.stroke ?? "")
+      ? {
+          id: "preview-color",
+          title: "颜色偏离团队规范",
+          message: `颜色应使用当前团队规范 ${logicalProfileColor}。`,
+          severity: "warning" as const,
+          stage: "team-spec" as const,
+          actionLabel: "编辑颜色",
+          elementId: bookmarkElement.id,
+        }
       : undefined,
-    !usesGeneratedPreview && dotElement.visible && dotElement.fill !== "#0F1218" ? "status dot fill should stay #0F1218 when 局部填充 is used" : undefined,
+    !usesGeneratedPreview && bookmarkElement.strokeWidth !== logicalProfileStrokeWidth
+      ? {
+          id: "preview-stroke-width",
+          title: "线宽偏离团队规范",
+          message: `线宽应为逻辑网格 ${logicalProfileStrokeWidth}px，写入主组件后为 ${activeOutputProfile.strokeWidth}px。`,
+          severity: "warning" as const,
+          stage: "team-spec" as const,
+          actionLabel: "编辑线宽",
+          elementId: bookmarkElement.id,
+        }
+      : undefined,
+    !usesGeneratedPreview && (bookmarkElement.radius ?? 4) !== 4
+      ? {
+          id: "preview-radius",
+          title: "圆角需要视觉依据",
+          message: "默认圆角为 4px；当前圆角偏离默认值，可以编辑或人工批准。",
+          severity: "warning" as const,
+          stage: "team-spec" as const,
+          actionLabel: "编辑圆角",
+          elementId: bookmarkElement.id,
+        }
+      : undefined,
+    !usesGeneratedPreview && (bookmarkElement.x < logicalProfilePadding || bookmarkElement.y < logicalProfilePadding)
+      ? {
+          id: "preview-safe-zone",
+          title: "图形触碰安全区",
+          message: `图形触碰 ${logicalProfilePadding}px 安全区，需要调整位置或人工确认光学偏移。`,
+          severity: "warning" as const,
+          stage: "team-spec" as const,
+          actionLabel: "编辑位置",
+          elementId: bookmarkElement.id,
+        }
+      : undefined,
+    !usesGeneratedPreview && (bookmarkElement.width > logicalProfileLiveArea || bookmarkElement.height > logicalProfileLiveArea)
+      ? {
+          id: "preview-live-area",
+          title: "图形超出 live area",
+          message: `图形超出 ${logicalProfileLiveArea}px 逻辑 live area，需要调整尺寸或人工确认。`,
+          severity: "warning" as const,
+          stage: "team-spec" as const,
+          actionLabel: "编辑尺寸",
+          elementId: bookmarkElement.id,
+        }
+      : undefined,
+    !usesGeneratedPreview && plusElement.visible && plusElement.x - (bookmarkElement.x + bookmarkElement.width) < 1.5
+      ? {
+          id: "preview-badge-gap",
+          title: "状态标记间距过近",
+          message: "plus badge is too close to bookmark outline; keep at least ~2px visual gap。",
+          severity: "warning" as const,
+          stage: "geometry" as const,
+          actionLabel: "检查图层",
+          elementId: plusElement.id,
+        }
+      : undefined,
+    !usesGeneratedPreview && dotElement.visible && ![defaultTeamIconColor, logicalProfileColor].includes(dotElement.fill ?? "")
+      ? {
+          id: "preview-dot-color",
+          title: "状态点颜色偏离规范",
+          message: `局部状态点应使用当前团队规范色 ${logicalProfileColor}。`,
+          severity: "warning" as const,
+          stage: "team-spec" as const,
+          actionLabel: "编辑颜色",
+          elementId: dotElement.id,
+        }
+      : undefined,
     !usesGeneratedPreview && dotElement.visible && (dotElement.width > 4 || dotElement.height > 4)
-      ? "局部填充 dot should stay tiny; large fills break outline-first style"
+      ? {
+          id: "preview-dot-density",
+          title: "局部填充过大",
+          message: "局部填充 dot should stay tiny; large fills break outline-first style。",
+          severity: "warning" as const,
+          stage: "team-spec" as const,
+          actionLabel: "编辑尺寸",
+          elementId: dotElement.id,
+        }
       : undefined,
+  ]).filter(Boolean) as IconQualityIssue[];
+  const pendingPreviewQualityIssues = previewQualityIssues.filter((issue) => !approvedPreviewWarningIds.includes(issue.id));
+  const approvedPreviewQualityIssues = previewQualityIssues.filter((issue) => approvedPreviewWarningIds.includes(issue.id));
+  const specWarnings = [
+    ...pendingPreviewQualityIssues.map((issue) => issue.message),
     previewHasQualityIssues ? previewReview.blockers[0] : undefined,
   ].filter((warning): warning is string => Boolean(warning));
+  const inspectorWarnings = selectedInstance
+    ? selectedInstancePendingQualityIssues.map((issue) => `${issue.title}：${issue.message}`)
+    : specWarnings;
   const currentSourceLabel = selectedSource ? `${selectedSource.source} / ${selectedSource.name}` : canvasSourceCandidates.length ? "候选图标库" : "AI 语义生成";
   const appliedSpecRules = [
-    `24×24 画板，2px 安全区`,
-    `#0F1218 单色线性`,
-    `2px 描边，圆角端点/连接`,
+    `${activeOutputProfile.masterSize}×${activeOutputProfile.masterSize} 主组件，${activeOutputProfile.padding}px 安全区`,
+    `${activeOutputProfile.color} 单色线性`,
+    `${activeOutputProfile.strokeWidth}px 描边，圆角端点/连接`,
     `局部填充只允许极小状态点`,
     `最终输出 Figma 可编辑 native nodes`,
   ];
@@ -4997,6 +5732,7 @@ export function IconWorkbench() {
   }
 
   function resetProductionState() {
+    setApprovedPreviewWarningIds([]);
     setDeliveryPackage(undefined);
     setDeliveryStatus("idle");
     setDeliveryMessage("");
@@ -5009,6 +5745,28 @@ export function IconWorkbench() {
     setBatchFigmaWriteMessage("");
     setBatchFigmaCopyStatus("idle");
     setBatchFigmaJsonCopyStatus("idle");
+  }
+
+  async function requestSourceDecision(
+    query: string,
+    options?: { variants?: boolean; production?: boolean; exactReuse?: boolean; semanticQuery?: string },
+  ) {
+    const response = await fetch("/api/source-decision", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query,
+        semanticQuery: options?.semanticQuery,
+        skillId: selectedTeamSpecLibraryId,
+        asksForVariants: options?.variants,
+        asksForProduction: options?.production,
+        asksForExactReuse: options?.exactReuse,
+      }),
+    });
+    const payload = (await response.json()) as SourceDecision & { message?: string };
+    if (!response.ok) throw new Error(payload.message || `Source decision failed: ${response.status}`);
+    setSourceDecision(payload);
+    return payload;
   }
 
   async function loadTeamLibrary(options?: { announce?: boolean; query?: string }) {
@@ -5246,7 +6004,7 @@ export function IconWorkbench() {
     setSourceMessage("");
     setSourceLoading(false);
     setSelectedSourceCandidates([]);
-    setIsSourcePanelCollapsed(false);
+    setIsSourcePanelCollapsed(true);
     setBatchInput("");
     setBatchTasks([]);
     setActiveTab(canvasInstances.length ? "layers" : "properties");
@@ -5266,12 +6024,21 @@ export function IconWorkbench() {
   ) {
     if (!selectedInstanceId) return;
 
+    const affectsQuality = Object.keys(patch).some((key) => ["previewStrokeWidth", "previewColor"].includes(key));
+
     setActiveCanvasInstances((current) =>
       current.map((instance) =>
         instance.id === selectedInstanceId
           ? {
               ...instance,
               ...patch,
+              ...(affectsQuality
+                ? {
+                    qualityApprovedIssueIds: undefined,
+                    reviewStatus: "pending" as const,
+                    reviewNote: "预览参数已编辑，需要重新检查质量门禁。",
+                  }
+                : {}),
               scale: patch.scale === undefined ? instance.scale : clampCanvasZoom(patch.scale),
               previewPadding: patch.previewPadding === undefined ? instance.previewPadding : clampNumber(patch.previewPadding, 12, 44),
               previewStrokeWidth:
@@ -5293,6 +6060,9 @@ export function IconWorkbench() {
         instance.id === selectedInstanceId
           ? {
               ...instance,
+              qualityApprovedIssueIds: undefined,
+              reviewStatus: "pending",
+              reviewNote: "图形属性已编辑，需要重新检查质量门禁。",
               elements: instance.elements.map((element) =>
                 element.id === selectedInstanceElement.id && !element.locked ? { ...element, ...patch } : element,
               ),
@@ -5337,11 +6107,67 @@ export function IconWorkbench() {
 
   function applyProMaxDefaults() {
     if (selectedElement.type === "ellipse") {
-      updateSelectedElement({ fill: "#0F1218", stroke: "#0F1218", strokeWidth: 0 });
+      updateSelectedElement({ fill: activeOutputProfile.color, stroke: activeOutputProfile.color, strokeWidth: 0 });
       return;
     }
 
-    updateSelectedElement({ stroke: "#0F1218", strokeWidth: 2, radius: selectedElement.type === "path" ? 4 : selectedElement.radius });
+    updateSelectedElement({
+      stroke: activeOutputProfile.color,
+      strokeWidth: activeOutputProfile.strokeWidth / activeOutputProfile.scale,
+      radius: selectedElement.type === "path" || selectedElement.type === "rect" ? 4 : selectedElement.radius,
+    });
+  }
+
+  function normalizeSelectedInstanceToTeamSpec() {
+    if (!selectedInstanceId) return;
+
+    const logicalStrokeWidth = activeOutputProfile.strokeWidth / activeOutputProfile.scale;
+    setActiveCanvasInstances((current) =>
+      current.map((instance) =>
+        instance.id === selectedInstanceId
+          ? {
+              ...instance,
+              qualityApprovedIssueIds: undefined,
+              reviewStatus: "pending",
+              reviewNote: "已恢复团队默认线宽和颜色，请继续检查安全区与语义质量。",
+              elements: instance.elements.map((element) => {
+                if (element.type === "frame" || element.type === "preview") return element;
+                const isFilledEllipse = element.type === "ellipse" && (element.strokeWidth ?? 0) === 0;
+                return {
+                  ...element,
+                  stroke: activeOutputProfile.color,
+                  strokeWidth: isFilledEllipse ? 0 : logicalStrokeWidth,
+                  fill: element.type === "ellipse" && isFilledEllipse ? activeOutputProfile.color : element.fill,
+                };
+              }),
+            }
+          : instance,
+      ),
+    );
+    setActiveTab("quality");
+    resetProductionState();
+  }
+
+  function enableSelectedInstanceGeometryEditing() {
+    if (!selectedInstanceId) return;
+
+    setActiveCanvasInstances((current) =>
+      current.map((instance) =>
+        instance.id === selectedInstanceId
+          ? {
+              ...instance,
+              sourceConversionStatus: instance.sourceConversionStatus === "reference_only" ? instance.sourceConversionStatus : "needs_review",
+              reviewNote: "已开启来源几何编辑；修改后需要重新检查并批准质量警告。",
+              qualityApprovedIssueIds: undefined,
+              reviewStatus: "pending",
+              elements: instance.elements.map((element) =>
+                element.type === "frame" || element.type === "preview" ? element : { ...element, locked: false },
+              ),
+            }
+          : instance,
+      ),
+    );
+    setActiveTab("properties");
   }
 
   function toggleElementVisibility(id: CanvasElementId) {
@@ -5363,29 +6189,24 @@ export function IconWorkbench() {
 
     try {
       if (tab === "all") {
-        const packageResults = await Promise.allSettled(
-          realPackageSourceTabs().map(async (sourceTab) => {
-            const assets = await fetchPackageSourceAssets(sourceTab, effectiveQuery);
-            return assets.map((asset, index) =>
-              buildSourceCandidate(
-                assetToSearchResult(asset, 14 - index / 100, `${sourceLibraryLabel(sourceTab)} 官方包真实检索`),
-                effectiveQuery,
-                14 - index / 100,
-                `${sourceLibraryLabel(sourceTab)} 官方包真实检索`,
-              ),
-            );
-          }),
+        const external = await fetchApprovedExternalAssets(effectiveQuery, 48);
+        const packageCandidates = external.assets.map((asset, index) =>
+          buildSourceCandidate(
+            assetToSearchResult(asset, 14 - index / 100, `${asset.source} 官方包真实检索`),
+            effectiveQuery,
+            14 - index / 100,
+            `${asset.source} 官方包真实检索`,
+          ),
         );
-        const packageCandidates = packageResults.flatMap((result) => (result.status === "fulfilled" ? result.value : []));
         const importedCandidates = buildSessionImportedSourceCandidates(effectiveQuery, importedIconfontIcons);
         const candidates = mergeSourceCandidates([...importedCandidates, ...packageCandidates], 72);
-        const failedCount = packageResults.filter((result) => result.status === "rejected").length;
+        const failedCount = external.failures.length;
 
         setCanvasSourceCandidates(candidates);
         setSourceQuery(effectiveQuery);
         setSourceMessage(
           candidates.length
-            ? `${selectedDirectionHint}：全部来源返回 ${candidates.length} 个真实候选：Lucide / IconPark / Tabler / Phosphor${importedCandidates.length ? " + 会话导入库" : ""}${failedCount ? `；${failedCount} 个来源暂不可用` : ""}。`
+            ? `${selectedDirectionHint}：${external.libraries.length} 个外部库返回 ${candidates.length} 个真实候选${importedCandidates.length ? " + 会话导入库" : ""}${failedCount ? `；${failedCount} 个来源暂不可用` : ""}。`
             : "全部来源没有找到候选。可换一个关键词，或先导入 Figma / Iconfont 项目库。",
         );
 
@@ -5395,7 +6216,7 @@ export function IconWorkbench() {
             {
               role: "assistant",
               content: candidates.length
-                ? "已在全部真实来源中检索。可以跨库多选、拖入画布；系统会保留来源图标形态，并统一为 icon-gen-promax 团队规范。"
+                ? `已完成真实外部来源检索。当前只把通过质量门槛的来源作为推荐方案；其余候选仍可在来源面板浏览。系统会保留选中来源的轮廓和构图，只规范化到 ${selectedTeamSpecLibrary.name}。`
                 : "全部真实来源暂时没有匹配结果。可以换关键词，或粘贴 Figma / Iconfont 项目来源。",
             },
           ]);
@@ -5413,7 +6234,7 @@ export function IconWorkbench() {
             {
               role: "assistant",
               content: [
-                "Figma 团队库是 icon-gen-promax 里的 Library B：优先读取团队已有 icon，避免重复生成。",
+                `Figma 团队库是 ${selectedTeamSpecLibrary.skillName} 的内部成熟来源：只精确复用已验证源图，避免重复生成。`,
                 "请粘贴 Figma 画布或 icon 区域链接；如果还没配置环境变量，也可以下一条直接粘贴 `figd_...` token，我会接着读取并训练入库。",
                 "没有 Token 时，也可以从 Figma 复制/导出 SVG 粘贴进来，我会收录为团队训练库候选。",
               ].join("\n"),
@@ -5495,7 +6316,7 @@ export function IconWorkbench() {
       {
         role: "assistant",
         content: candidates.length
-	          ? `已打开 ${sourceLabel} 参考面板。可以选中或拖到画布；来源只作为语义参考，最终画布会套 icon-gen-promax 团队规范。`
+	          ? `已打开 ${sourceLabel} 参考面板。可以选中或拖到画布；通过筛选后会保留来源轮廓与构图，并套用 ${selectedTeamSpecLibrary.name}。`
           : `暂时没找到合适的 ${sourceLabel} 参考。可以换个说法，或直接让 AI 生成。`,
       },
     ]);
@@ -5532,7 +6353,7 @@ export function IconWorkbench() {
         role: "assistant",
         content: [
           `已导入 ${parsed.length} 个真实来源图标。`,
-          "我已经把它们送进团队规范处理器：统一 24×24、#0F1218、2px、圆角线端。",
+          `我已经把它们送进团队规范处理器：输出 ${activeOutputProfile.masterSize}×${activeOutputProfile.masterSize}、${activeOutputProfile.color}、${activeOutputProfile.strokeWidth}px、圆角线端。`,
           "下一步可以多选批量放到画布，或可选参考继续生成。",
         ].join("\n"),
       },
@@ -5612,6 +6433,7 @@ export function IconWorkbench() {
       const candidates = assets.map((asset, index) =>
         buildSourceCandidate(asset, query, 14 - index / 10, "Figma 画布团队库真实读取"),
       );
+      const recommended = recommendedSourceCandidates(candidates, 3);
 
       setPendingFigmaUrl("");
       setPendingFigmaQuery("");
@@ -5627,10 +6449,18 @@ export function IconWorkbench() {
           content: assets.length
             ? [
                 `已从 Figma 画布读取并收录 ${assets.length} 个团队 icon 候选。`,
-                "它们现在进入“Figma 团队库”标签，可以按语义挑选。",
-                "选中后不会直接复制原图，而是先经过团队规范处理器，再输出你的规范组件。",
+                recommended.length
+                  ? `其中 ${recommended.length} 个通过当前语义与结构质量门槛，已作为首轮候选展示。`
+                  : "当前候选没有通过质量门槛，因此不展示低质量方案凑数。",
+                "选中后保留来源图标的可识别轮廓、部件关系和构图，只规范化线宽、圆角、间距、密度与可编辑节点。",
               ].join("\n")
             : "我读到了 Figma 画布，但没识别到可用 icon。建议传更具体的 icon 区域 node-id，或先从 Figma 导出 SVG 粘贴进来。",
+          sourceCandidates: recommended,
+          quickActions: recommended.length
+            ? [{ label: "探索其他语义变体", value: "continue-ai-semantics" }]
+            : assets.length
+              ? [{ label: "团队候选未过门槛，继续检索外部来源", value: "search-source-library" }]
+              : undefined,
         },
       ]);
     } catch (error) {
@@ -5671,6 +6501,31 @@ export function IconWorkbench() {
     setSourceMessage(`已选“${candidate.name}”作参考；这只影响来源选择，不会新开 A/B/C 语义分支。可拖入画布或继续在对话里选 AI 方向。`);
   }
 
+  function placeRecommendedSourceCandidate(candidateId: string) {
+    const candidate = canvasSourceCandidates.find((item) => item.id === candidateId);
+    if (!candidate) return;
+    const nextInstance = createInstanceFromCandidate(candidate, canvasInstances.length);
+    setActiveCanvasInstances((current) => [...current, nextInstance]);
+    setSelectedSource(candidate);
+    setSelectedInstanceId(nextInstance.id);
+    setIsSourcePanelCollapsed(true);
+    setActiveTab("properties");
+    window.requestAnimationFrame(() => focusCanvasInstance(nextInstance, { zoom: Math.max(canvasZoom, 0.9) }));
+    setMessages((current) => [
+      ...current,
+      {
+        role: "assistant",
+        content: [
+          `已把 ${candidate.source} / ${candidate.name} 放入画布。`,
+          `保留了来源图标的可识别轮廓、部件关系和构图；只按 ${selectedTeamSpecLibrary.name} 规范化线宽、圆角、间距、密度与可编辑节点。`,
+          nextInstance.sourceConversionStatus === "reference_only"
+            ? "当前来源结构无法安全转成 native shapes，已明确标记为仅参考，不会用 AI 模板冒充。"
+            : "请在画布中检查后再确认预览与写入 Figma。",
+        ].join("\n"),
+      },
+    ]);
+  }
+
   function toggleCandidateSelection(candidateId: string) {
     const candidate = canvasSourceCandidates.find((item) => item.id === candidateId);
     if (!candidate) return;
@@ -5691,7 +6546,7 @@ export function IconWorkbench() {
 
   function createInstanceFromCandidate(candidate: SourceCandidate, index: number, position?: { x: number; y: number }) {
     const sourcePayload = buildSourceCandidateCanvasPayload(candidate, brief);
-    const candidateName = toIconComponentName(candidate.name, sourcePayload.normalizedBrief.semanticName);
+    const candidateName = toIconComponentName(candidate.name, sourcePayload.normalizedBrief.semanticName, activeOutputProfile.componentPrefix);
 
     return createCanvasInstance({
       brief: sourcePayload.normalizedBrief,
@@ -5707,6 +6562,8 @@ export function IconWorkbench() {
       sourceConversionStatus: sourcePayload.sourceConversionStatus,
       reviewNote: sourcePayload.reviewNote,
       name: candidateName,
+      componentPrefix: activeOutputProfile.componentPrefix,
+      previewColor: activeOutputProfile.color,
     });
   }
 
@@ -5810,7 +6667,7 @@ export function IconWorkbench() {
         role: "assistant",
         content: [
           `已把 ${nextInstances.length} 个图标批量放到画布。`,
-          "画布中保留来源库图标的原始形态，同时统一为 icon-gen-promax 团队规范：24×24、#0F1218、2px、圆角线端。",
+          `画布中保留来源库图标的原始形态，同时统一为 ${selectedTeamSpecLibrary.name}：${activeOutputProfile.masterSize}×${activeOutputProfile.masterSize}、${activeOutputProfile.color}、${activeOutputProfile.strokeWidth}px、圆角线端。`,
           "如果某个来源 SVG 结构太复杂，系统会明确标记为仅参考，不会再用 AI 模板冒充来源图标。",
         ].join("\n"),
       },
@@ -5881,7 +6738,7 @@ export function IconWorkbench() {
         content: [
           `已把「${candidate.name}」拖入画布。`,
           nextInstance.sourceConversionStatus === "team_normalized"
-            ? "我已保留来源库图标形态，并套用 icon-gen-promax 团队规范：24×24 / 2px / #0F1218 / 圆角线端。"
+            ? `我已保留来源库图标形态，并套用 ${selectedTeamSpecLibrary.name}：${activeOutputProfile.masterSize}×${activeOutputProfile.masterSize} / ${activeOutputProfile.strokeWidth}px / ${activeOutputProfile.color} / 圆角线端。`
             : "这个来源图标已保留形态并进入团队规范检查；复杂 SVG 会标记待确认，不会再替换成 AI 模板。",
         ].join("\n"),
       },
@@ -5947,7 +6804,13 @@ export function IconWorkbench() {
         sourceCandidateId: bestCandidate?.id,
         sourceConversionStatus: sourcePayload?.sourceConversionStatus,
         reviewNote: sourcePayload?.reviewNote,
-        name: toIconComponentName(bestCandidate?.name ?? task.name, sourcePayload?.normalizedBrief.semanticName ?? taskBrief.semanticName),
+        name: toIconComponentName(
+          bestCandidate?.name ?? task.name,
+          sourcePayload?.normalizedBrief.semanticName ?? taskBrief.semanticName,
+          activeOutputProfile.componentPrefix,
+        ),
+        componentPrefix: activeOutputProfile.componentPrefix,
+        previewColor: activeOutputProfile.color,
       });
     });
 
@@ -5956,6 +6819,7 @@ export function IconWorkbench() {
     const targetInstance = nextInstances.at(-1);
     if (targetInstance) focusCanvasInstance(targetInstance);
     setBatchTasks((current) => current.map((task) => ({ ...task, status: "queued" })));
+    setIsSourcePanelCollapsed(true);
     setActiveTab("properties");
     setMessages((current) => [
       ...current,
@@ -5977,6 +6841,16 @@ export function IconWorkbench() {
     setIsSourcePanelCollapsed(false);
   }
 
+  function approvePreviewQualityIssue(issueId: string) {
+    const issue = previewQualityIssues.find((candidate) => candidate.id === issueId);
+    if (!issue || issue.severity === "blocker") return;
+    setApprovedPreviewWarningIds((current) => (current.includes(issue.id) ? current : [...current, issue.id]));
+  }
+
+  function approveAllPreviewQualityWarnings() {
+    setApprovedPreviewWarningIds((current) => Array.from(new Set([...current, ...previewQualityIssues.map((issue) => issue.id)])));
+  }
+
   function approveCurrentPreview(userContent?: string) {
     if (!showPreview || !selectedOption) return;
 
@@ -5989,7 +6863,7 @@ export function IconWorkbench() {
           role: "assistant",
           content: [
             "我先不批准这个预览。",
-            "原因：当前还没有通过 icon-gen-promax 的质量门禁。",
+            `原因：当前还没有通过 ${selectedTeamSpecLibrary.skillName} 的质量门禁。`,
             ...specWarnings.map((warning) => `- ${warning}`),
             "先修预览，再进入 Icon Spec / Figma native-node 交付。",
           ].join("\n"),
@@ -6075,6 +6949,8 @@ export function IconWorkbench() {
       option,
       variants,
       startIndex: canvasInstances.length,
+      componentPrefix: activeOutputProfile.componentPrefix,
+      previewColor: activeOutputProfile.color,
     });
     const passingCount = variants.filter((variant) => variant.qualityStatus !== "blocked").length;
 
@@ -6082,7 +6958,7 @@ export function IconWorkbench() {
       ...current.filter((instance) => !instance.sourceName?.startsWith(aiPreviewGridSourcePrefix)),
       ...nextInstances,
     ]);
-    setSelectedInstanceId(nextInstances[0]?.id);
+    setSelectedInstanceId(undefined);
     setSelectedPreviewVariantId(undefined);
     setApprovedPreview(false);
     resetProductionState();
@@ -6106,9 +6982,103 @@ export function IconWorkbench() {
             label: "定位画布里的 AI 方案",
             value: "focus-ai-variants",
           },
+          {
+            label: "写入 Figma 画布",
+            value: "open-figma-write",
+          },
         ],
       },
     ]);
+  }
+
+  async function selectOptionAndSearchSources(optionId: SemanticOption["id"], userContent?: string) {
+    const option = semanticOptions.find((item) => item.id === optionId);
+    if (!option) return;
+
+    applySemanticOption(optionId);
+    setShowPreview(false);
+    setPhase("semantic");
+    setActiveTab("layers");
+    setSelectedInstanceId(undefined);
+    setSelectedPreviewVariantId(undefined);
+    setApprovedPreview(false);
+    resetProductionState();
+
+    const semanticSourceQuery = buildSemanticSourceQuery(brief, option, brief.sourceText);
+    setSourceQuery(semanticSourceQuery);
+    setSourceLibraryTab("all");
+    setIsSourcePanelCollapsed(false);
+    setSourceLoading(true);
+    setSourceMessage("正在按选定语义检索真实外部来源…");
+
+    try {
+      const routeDecision = await requestSourceDecision(semanticSourceQuery, { variants: true, semanticQuery: brief.label });
+      const external = await fetchApprovedExternalAssets(semanticSourceQuery, 36);
+      const packageCandidates = external.assets.map((asset, index) =>
+        buildSourceCandidate(
+          assetToSearchResult(asset, 14 - index / 100, `${asset.source} 官方包真实检索`),
+          semanticSourceQuery,
+          14 - index / 100,
+          `${asset.source} 官方包真实检索`,
+        ),
+      );
+      const importedCandidates = buildSessionImportedSourceCandidates(semanticSourceQuery, importedIconfontIcons);
+      const candidates = mergeSourceCandidates([...importedCandidates, ...packageCandidates], 72);
+      const recommended = recommendedSourceCandidates(candidates, 3);
+
+      setCanvasSourceCandidates(candidates);
+      setSourceMessage(
+        recommended.length
+          ? `已从 ${external.libraries.length} 个真实外部库筛出 ${recommended.length} 个高质量推荐；完整候选仍可继续浏览。`
+          : "真实外部来源已检索，但没有候选通过当前质量门槛；可以调整关键词或进入 AI 兜底。",
+      );
+      setMessages((current) => [
+        ...current,
+        {
+          role: "user",
+          content: userContent ?? `我选 ${optionId}，先从来源库检索参考`,
+        },
+        {
+          role: "assistant",
+          content: [
+            `已按方向 ${optionId}「${option.title}」完成真实来源检索。`,
+            routeDecision.adjacentMatches.length
+              ? `成熟库相近参考：${routeDecision.adjacentMatches[0].label ?? routeDecision.adjacentMatches[0].name}，仅作为约束，不直接改画。`
+              : undefined,
+            recommended.length
+              ? `推荐 ${recommended.length} 个来源方案。选中后会保留原始轮廓、部件关系和构图，只规范化线宽、圆角、间距、密度与可编辑节点。`
+              : "没有来源通过语义/结构质量门槛，AI 生成现在才作为兜底。",
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          sourceCandidates: recommended,
+          quickActions: recommended.length
+            ? undefined
+            : [
+                {
+                  label: "外部来源不合适，使用 AI 兜底",
+                  value: `generate-option-${optionId.toLowerCase()}`,
+                },
+              ],
+        },
+      ]);
+    } catch {
+      setSourceMessage("外部来源检索暂不可用；没有展示模拟候选。可以稍后重试或明确使用 AI 兜底。");
+      setMessages((current) => [
+        ...current,
+        {
+          role: "user",
+          content: userContent ?? `我选 ${optionId}，先从来源库检索参考`,
+        },
+        {
+          role: "assistant",
+          content: "真实外部来源当前不可用，我没有伪造候选。你可以重试，或明确使用 AI 兜底。",
+          quickActions: [{ label: "使用 AI 兜底", value: `generate-option-${optionId.toLowerCase()}` }],
+        },
+      ]);
+    } finally {
+      setSourceLoading(false);
+    }
   }
 
   function selectPreviewVariant(optionId: SemanticOption["id"], variantId: PreviewVariantId, userContent?: string) {
@@ -6187,23 +7157,28 @@ export function IconWorkbench() {
     specWarnings.length ? "需要先解决实时交付警告" : undefined,
   ].filter((reason): reason is string => Boolean(reason));
   const canGenerateFigmaPayload = drawBlockedReasons.length === 0;
-  const nativeShapes = usesGeneratedPreview
+  const logicalNativeShapes = usesGeneratedPreview
     ? previewShapes
     : drawableElements
         .map((element) => buildNativeShapeContract(element, brief.glyphKind))
         .filter((shape): shape is NativeShapeContract => Boolean(shape));
+  const nativeShapes = scaleNativeShapes(logicalNativeShapes, activeOutputProfile.scale);
   const iconSpecContract: IconSpecContract = {
     meta: {
-      name: `AijBasic${brief.semanticName}`,
+      name: `${activeOutputProfile.componentPrefix}${brief.semanticName}`,
       label: brief.label,
-      size: 24,
-      grid: 24,
+      size: activeOutputProfile.masterSize,
+      grid: activeOutputProfile.masterSize,
       context: brief.context,
       style: "outline",
       color_mode: "monochrome",
       corner_radius: "rounded",
       selected_direction: selectedOption?.title ?? "pending semantic approval",
       preview_status: approvedPreview ? "approved" : "waiting",
+      skill_id: selectedTeamSpecLibraryId,
+      platform: activeOutputProfile.platform,
+      logical_size: activeOutputProfile.logicalSize,
+      runtime_mode: "strict",
       source: selectedSource
         ? {
             type: selectedSource.source,
@@ -6221,20 +7196,21 @@ export function IconWorkbench() {
           },
     },
     canvas: {
-      padding: 2,
-      live_area: "20×20",
+      padding: activeOutputProfile.padding,
+      live_area: activeOutputProfile.liveArea,
       optical_center: true,
     },
     shapes: nativeShapes,
     strokes: {
-      color: "#0F1218",
-      width: 2,
+      color: activeOutputProfile.color,
+      width: activeOutputProfile.strokeWidth,
       cap: "round",
       join: "round",
     },
     validation: {
       status: !showPreview || !selectedOption ? "blocked" : specWarnings.length ? "needs_review" : "pass",
       warnings: specWarnings,
+      manual_approved_warnings: approvedPreviewQualityIssues.map((issue) => issue.id),
       output: "Figma native nodes, not pasted SVG",
     },
   };
@@ -6268,6 +7244,54 @@ export function IconWorkbench() {
           : instance,
         ),
     );
+  }
+
+  function approveSelectedQualityIssue(issueId: string) {
+    if (!selectedInstanceId) return;
+    const issue = selectedInstanceQualityIssues.find((candidate) => candidate.id === issueId);
+    if (!issue || issue.severity === "blocker") return;
+
+    setActiveCanvasInstances((current) =>
+      current.map((instance) =>
+        instance.id === selectedInstanceId
+          ? {
+              ...instance,
+              qualityApprovedIssueIds: Array.from(new Set([...(instance.qualityApprovedIssueIds ?? []), issue.id])),
+              reviewStatus: "approved",
+              reviewNote: `已人工批准「${issue.title}」：${issue.message}`,
+            }
+          : instance,
+      ),
+    );
+  }
+
+  function approveSelectedQualityWarnings() {
+    if (!selectedInstanceId || selectedInstanceBlockers.length) return;
+    const warningIds = selectedInstanceQualityIssues.filter((issue) => issue.severity === "warning").map((issue) => issue.id);
+    if (!warningIds.length) return;
+
+    setActiveCanvasInstances((current) =>
+      current.map((instance) =>
+        instance.id === selectedInstanceId
+          ? {
+              ...instance,
+              qualityApprovedIssueIds: Array.from(new Set([...(instance.qualityApprovedIssueIds ?? []), ...warningIds])),
+              reviewStatus: "approved",
+              reviewNote: `已人工批准 ${warningIds.length} 条质量警告；硬阻断仍需修复。`,
+            }
+          : instance,
+      ),
+    );
+  }
+
+  function focusQualityIssue(issue: IconQualityIssue) {
+    if (issue.elementId) setSelectedElementId(issue.elementId);
+    if (issue.stage === "geometry") {
+      setActiveTab("layers");
+    } else {
+      setActiveTab("properties");
+    }
+    if (issue.stage === "source") setIsSourcePanelCollapsed(false);
   }
 
   async function approveSelectedInstanceIntoTeamLibrary() {
@@ -6320,7 +7344,12 @@ export function IconWorkbench() {
   function buildBatchFigmaWriteItems(): BatchFigmaWriteItem[] {
     return canvasLayers.flatMap((layer) =>
       layer.instances.map((instance, index) => {
-        const spec = buildIconSpecFromCanvasInstance(instance, `${layer.name} / 批量写入`);
+        const spec = buildIconSpecFromCanvasInstance(
+          instance,
+          `${layer.name} / 批量写入`,
+          activeOutputProfile,
+          selectedTeamSpecLibraryId,
+        );
         return {
           id: instance.id,
           name: instance.name,
@@ -6343,6 +7372,44 @@ export function IconWorkbench() {
       return;
     }
 
+    const unresolvedInstances = canvasLayers.flatMap((layer) =>
+      layer.instances.flatMap((instance) => {
+        const approvedIssueIds = new Set(instance.qualityApprovedIssueIds ?? []);
+        const unresolvedIssues = getCanvasInstanceQualityIssues(instance, activeOutputProfile).filter(
+          (issue) => issue.severity === "blocker" || !approvedIssueIds.has(issue.id),
+        );
+        return unresolvedIssues.length ? [{ layerId: layer.id, instance, issues: unresolvedIssues }] : [];
+      }),
+    );
+
+    if (unresolvedInstances.length) {
+      const firstBlocked = unresolvedInstances[0];
+      const firstIssue = firstBlocked.issues[0];
+      setActiveCanvasLayerId(firstBlocked.layerId);
+      setSelectedInstanceId(firstBlocked.instance.id);
+      setActiveTab("quality");
+      setIsFigmaSetupExpanded(true);
+      setBatchFigmaWriteStatus("blocked");
+      setBatchFigmaWriteMessage(
+        `写入停在「${qualityStageLabel(firstIssue.stage)}」：${firstBlocked.instance.name} / ${firstIssue.title}。${firstIssue.message} 还有 ${unresolvedInstances.length} 个图标需要处理。`,
+      );
+      setMessages((current) => [
+        ...current,
+        {
+          role: "assistant",
+          content: [
+            `Figma 写入没有投递，当前卡在「${qualityStageLabel(firstIssue.stage)}」。`,
+            `图标：${firstBlocked.instance.name}`,
+            `问题：${firstIssue.message}`,
+            firstIssue.severity === "blocker"
+              ? "这是硬阻断，必须修复或更换来源，不能人工绕过。"
+              : "可以在质量面板编辑修复，也可以人工批准这条偏差后继续。",
+          ].join("\n"),
+        },
+      ]);
+      return;
+    }
+
     const items = buildBatchFigmaWriteItems();
     if (!items.length) {
       setBatchFigmaWriteStatus("blocked");
@@ -6353,6 +7420,7 @@ export function IconWorkbench() {
     setActiveTab("spec");
     setBatchFigmaWriteStatus("building");
     setBatchFigmaWriteMessage("正在校验目标 Figma 文件，并生成批量 JSON 规格与 native 执行器…");
+    setFigmaWriteJob(undefined);
     setBatchFigmaCopyStatus("idle");
     setBatchFigmaJsonCopyStatus("idle");
 
@@ -6366,6 +7434,8 @@ export function IconWorkbench() {
           targetUrl,
           token: figmaWriteToken.trim() || figmaSessionToken.trim() || undefined,
           items,
+          skillId: selectedTeamSpecLibraryId,
+          skillNames: activeOutputProfile.skillNames,
         }),
       });
       const payload = (await response.json()) as BatchFigmaWriteRun;
@@ -6397,8 +7467,9 @@ export function IconWorkbench() {
             `${jobPayload.message ?? "已投递 Figma 插件写入任务。"} 在 Figma 里运行 figma-plugin/IconOps JSON Native Writer，点击“拉取最新任务并写入”。`,
           );
         } else {
+          setFigmaWriteJob(undefined);
           setBatchFigmaWriteStatus("blocked");
-          setBatchFigmaWriteMessage(jobPayload.message ?? "JSON 已生成，但投递 Figma 插件桥失败。");
+          setBatchFigmaWriteMessage(jobPayload.message ? `任务未投递：${jobPayload.message}` : "JSON 已生成，但投递 Figma 插件桥失败。");
         }
       }
 
@@ -6425,9 +7496,9 @@ export function IconWorkbench() {
           })),
         },
       ]);
-    } catch {
+    } catch (error) {
       setBatchFigmaWriteStatus("failed");
-      setBatchFigmaWriteMessage("批量写入任务生成失败，请检查本地服务是否正常。");
+      setBatchFigmaWriteMessage(error instanceof Error ? `批量写入任务生成失败：${error.message}` : "批量写入任务生成失败，请检查本地服务是否正常。");
     }
   }
 
@@ -6485,7 +7556,7 @@ export function IconWorkbench() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ spec: iconSpecContract }),
+      body: JSON.stringify({ spec: iconSpecContract, skillNames: activeOutputProfile.skillNames }),
     });
 
     const payload = (await response.json()) as ProductionRun;
@@ -6646,6 +7717,11 @@ export function IconWorkbench() {
       return;
     }
 
+    if (value.startsWith("choose-source:")) {
+      placeRecommendedSourceCandidate(decodeURIComponent(value.slice("choose-source:".length)));
+      return;
+    }
+
     const previewVariantMatch = value.match(/^preview-([a-f])-(10|[1-9])$/);
     if (previewVariantMatch) {
       selectPreviewVariant(previewVariantMatch[1].toUpperCase() as SemanticOption["id"], previewVariantMatch[2] as PreviewVariantId);
@@ -6658,18 +7734,24 @@ export function IconWorkbench() {
       return;
     }
 
+    const generateOptionMatch = value.match(/^generate-option-([abc])$/);
+    if (generateOptionMatch) {
+      selectOptionAndPreview(generateOptionMatch[1].toUpperCase() as SemanticOption["id"]);
+      return;
+    }
+
     if (value === "option-a") {
-      selectOptionAndPreview("A");
+      selectOptionAndSearchSources("A");
       return;
     }
 
     if (value === "option-b") {
-      selectOptionAndPreview("B");
+      selectOptionAndSearchSources("B");
       return;
     }
 
     if (value === "option-c") {
-      selectOptionAndPreview("C");
+      selectOptionAndSearchSources("C");
       return;
     }
 
@@ -6683,13 +7765,19 @@ export function IconWorkbench() {
       return;
     }
 
+    if (value === "open-figma-write") {
+      setIsFigmaSetupExpanded(true);
+      setBatchFigmaWriteMessage(totalCanvasInstanceCount ? "填写 Figma 目标链接和 token 后，点击写入准备即可批量写入画布。" : "画布里还没有可写入的 icon。");
+      return;
+    }
+
     if (value === "generate-delivery") {
       void generateDeliveryPackage();
       return;
     }
 
     if (value === "continue-ai-semantics") {
-      startSemanticPlan(brief, sourceQuery || brief.sourceText);
+      startSemanticPlan(brief, sourceQuery || brief.sourceText, undefined, undefined, { skipExactReuse: true });
       return;
     }
 
@@ -6721,11 +7809,19 @@ export function IconWorkbench() {
       },
       body: JSON.stringify({
         message,
+        activeSkillId: selectedTeamSpecLibrary.id,
         history: messages.slice(-8).map((item) => ({
           role: item.role,
           content: item.content,
         })),
-        context: agentContext,
+        context: {
+          ...agentContext,
+          teamSpecLibrary: {
+            id: selectedTeamSpecLibrary.id,
+            name: selectedTeamSpecLibrary.name,
+            skillName: selectedTeamSpecLibrary.skillName,
+          },
+        },
       }),
     });
 
@@ -6744,13 +7840,30 @@ export function IconWorkbench() {
     return undefined;
   }
 
-  function startSemanticPlan(nextBrief: IconBrief, userContent: string, decision?: AgentDecision, targetMessageId?: string) {
+  async function startSemanticPlan(
+    nextBrief: IconBrief,
+    userContent: string,
+    decision?: AgentDecision,
+    targetMessageId?: string,
+    behavior?: { skipExactReuse?: boolean },
+  ) {
     const effectiveBrief = decision ? buildModelBrief(decision, userContent, nextBrief) : nextBrief;
     const options = buildSemanticOptionsFromDecision(decision, effectiveBrief);
     const query = userContent || effectiveBrief.sourceText;
+    const isVariantExploration = Boolean(behavior?.skipExactReuse);
+    let routeDecision: SourceDecision | undefined;
+    try {
+      routeDecision = await requestSourceDecision(query, {
+        variants: isVariantExploration || /变体|更多方案|多出几个|探索|variant/i.test(userContent),
+        production: /figma|写入|交付|生产|production/i.test(userContent),
+        exactReuse: /复用|标准版|一比一|1:1|完全一致/i.test(userContent),
+        semanticQuery: effectiveBrief.label,
+      });
+    } catch {
+      setSourceDecision(undefined);
+    }
     const explicitSourceTab = detectSourceTab(query);
     const preferredTab = explicitSourceTab && explicitSourceTab !== "ai" ? explicitSourceTab : undefined;
-    const shouldOpenReferenceLibrary = Boolean(preferredTab) || shouldOpenReferenceLibraryForBrief(effectiveBrief);
     const nextSourceTab = preferredTab || sourceLibraryTab || "lucide";
     const initialCandidates = preferredTab ? buildSourceCandidates(query, preferredTab, importedIconfontIcons) : [];
 
@@ -6760,7 +7873,7 @@ export function IconWorkbench() {
     setSourceLibraryTab(nextSourceTab);
     setSelectedSource(undefined);
     setCanvasSourceCandidates(initialCandidates);
-    setIsSourcePanelCollapsed(!shouldOpenReferenceLibrary);
+    setIsSourcePanelCollapsed(true);
     setSelectedSourceCandidates([]);
     setCanvasElements(buildInitialCanvasElements(effectiveBrief));
     setSelectedElementId("bookmark");
@@ -6772,17 +7885,52 @@ export function IconWorkbench() {
     setPhase("semantic");
     setActiveTab("layers");
     setAgentMode(decision?.mode ?? "fallback");
+
+    if (!isVariantExploration && routeDecision?.exactMatch && routeDecision.sourceUrl) {
+      setSourceQuery(query);
+      setSourceLibraryTab("figma");
+      setCanvasSourceCandidates([]);
+      setIsSourcePanelCollapsed(false);
+      appendAssistantTypewriterMessage(
+        {
+          content: [
+            `运行模式：严格模式（strict）`,
+            `成熟库精确命中：${routeDecision.exactMatch.label ?? routeDecision.exactMatch.name}`,
+            `源图校验：必须先读取成熟库 Figma 源节点或源截图；当前不会凭文字或 shape-spec 重画“标准版”。`,
+            routeDecision.exactMatch.guardrails?.geometrySummary
+              ? `质量约束：${routeDecision.exactMatch.guardrails.geometrySummary}`
+              : undefined,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        },
+        { targetId: targetMessageId },
+      );
+      void importFigmaCanvasFromUrl(routeDecision.sourceUrl, query);
+      return;
+    }
+
     appendAssistantTypewriterMessage(
       {
-        content: [
-          decision?.response || `我理解是做“${effectiveBrief.concept}”图标。先选一个视觉方向，我再出预览。`,
-          "主流程：选择 A/B/C 后生成 AI SVG 预览；参考图标库只是同步打开的辅助对照。",
-        ].join("\n"),
+        content:
+          [
+            isVariantExploration
+              ? "运行模式：探索模式（explore），保留成熟库标准版，同时展开其他语义方向。"
+              : routeDecision
+                ? `运行模式：${routeDecision.mode === "explore" ? "探索模式" : "快速模式"}（${routeDecision.mode}）`
+                : undefined,
+            !isVariantExploration && routeDecision?.adjacentMatches.length
+              ? `成熟库仅相近命中“${routeDecision.adjacentMatches[0].label ?? routeDecision.adjacentMatches[0].name}”，只作为语义/风格约束，不直接改画。`
+              : undefined,
+            decision?.response || `我理解是做“${effectiveBrief.concept}”图标。先选择语义方向，再检索真实外部来源。`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
         semanticOptions: options,
         semanticBrief: effectiveBrief,
         quickActions: [
           {
-            label: "从图标库找参考",
+            label: "优先从图标库检索参考",
             value: "search-source-library",
           },
         ],
@@ -6790,9 +7938,7 @@ export function IconWorkbench() {
       { targetId: targetMessageId },
     );
 
-    if (shouldOpenReferenceLibrary) {
-      void loadSourceLibrary(searchableSourceTab(nextSourceTab), query);
-    }
+    if (preferredTab) void loadSourceLibrary(searchableSourceTab(nextSourceTab), query);
   }
 
   function handleAgentSideEffects(message: string, decision: AgentDecision, targetMessageId?: string): AgentHandleResult {
@@ -6833,6 +7979,7 @@ export function IconWorkbench() {
 
     if (figmaToken) {
       setFigmaSessionToken(figmaToken);
+      const persisted = await persistFigmaToken(figmaToken);
       setMessages((current) => [...current, { role: "user", content: "我粘贴了 Figma 访问令牌" }]);
 
       if (pendingFigmaUrl) {
@@ -6840,7 +7987,9 @@ export function IconWorkbench() {
           ...current,
           {
             role: "assistant",
-            content: "收到 token。我会继续读取刚才那条 Figma 链接，不需要你再粘一遍。",
+            content: persisted
+              ? "收到 token，已在后端加密保存。我会继续读取刚才那条 Figma 链接，不需要你再粘一遍。"
+              : "收到 token。我会继续读取刚才那条 Figma 链接，不需要你再粘一遍；登录后可将它加密保存。",
           },
         ]);
         void importFigmaCanvasFromUrl(pendingFigmaUrl, pendingFigmaQuery || message, figmaToken);
@@ -6849,7 +7998,9 @@ export function IconWorkbench() {
           ...current,
           {
             role: "assistant",
-            content: "收到 token。现在请粘贴完整 Figma 文件或 Frame 链接，我就能读取画布里的 icon 并收录到团队库。",
+            content: persisted
+              ? "收到 token，已在后端加密保存。现在请粘贴完整 Figma 文件或 Frame 链接，我就能读取画布里的 icon 并收录到团队库。"
+              : "收到 token。现在请粘贴完整 Figma 文件或 Frame 链接，我就能读取画布里的 icon 并收录到团队库；登录后可将它加密保存。",
           },
         ]);
       }
@@ -6893,7 +8044,7 @@ export function IconWorkbench() {
     }
 
     if (optionId && (phase === "semantic" || phase === "brief" || !showPreview)) {
-      selectOptionAndPreview(optionId, message);
+      selectOptionAndSearchSources(optionId, message);
       return;
     }
 
@@ -6905,6 +8056,14 @@ export function IconWorkbench() {
     if (approvedPreview && isApprovalMessage(message)) {
       void generateDeliveryPackage(message);
       return;
+    }
+
+    const isBriefContinuation = phase === "brief" && messages.some((item) => item.role === "user") && isBriefContinuationMessage(message);
+    const localBrief = isBriefContinuation ? mergeBriefContinuation(message, brief) : buildBriefFromMessage(message, brief);
+    if (isNewBriefMessage(message) || isBriefContinuation) {
+      setBrief(localBrief);
+      setActiveSemanticOptions(buildSemanticOptions(localBrief));
+      setCanvasElements(buildInitialCanvasElements(localBrief));
     }
 
     const streamingMessageId = createChatMessageId("assistant-stream");
@@ -6930,7 +8089,7 @@ export function IconWorkbench() {
         intent: "brief_icon",
         query: message,
         confidence: 0.4,
-        response: "Agent 接口暂不可用，已使用本地 icon-gen-promax fallback。",
+        response: `Agent 接口暂不可用，已使用 ${selectedTeamSpecLibrary.skillName} 的本地规则 fallback。`,
         actions: [
           {
             id: "brief",
@@ -6948,6 +8107,25 @@ export function IconWorkbench() {
     }
 
     if (conversationIdRef.current !== conversationId) return;
+
+    if (isBriefContinuation && localBrief.glyphKind !== "generic") {
+      const continuationDecision: AgentDecision = {
+        ...decision,
+        intent: "plan_semantics",
+        query: localBrief.sourceText,
+        response: `已补齐“${localBrief.label}”图标的使用场景：${localBrief.context}。现在进入语义方向与真实来源检索。`,
+        brief: {
+          concept: localBrief.concept,
+          label: localBrief.label,
+          semanticName: localBrief.semanticName,
+          context: localBrief.context,
+          emphasis: localBrief.emphasis,
+          glyphKind: localBrief.glyphKind,
+        },
+      };
+      startSemanticPlan(localBrief, localBrief.sourceText, continuationDecision, streamingMessageId);
+      return;
+    }
 
     if (handleAgentSideEffects(message, decision, streamingMessageId) === "handled") {
       return;
@@ -6972,7 +8150,7 @@ export function IconWorkbench() {
       if (requestedSourceTab === "iconfont") {
         appendAssistantTypewriterMessage(
           {
-            content: "我会读取 Iconfont 项目里的真实图标，选中后统一套 24×24 / 2px / #0F1218 的团队规范。",
+            content: `我会读取 Iconfont 项目里的真实图标，选中后统一套 ${activeOutputProfile.masterSize}×${activeOutputProfile.masterSize} / ${activeOutputProfile.strokeWidth}px / ${activeOutputProfile.color} 的团队规范。`,
           },
           { targetId: streamingMessageId },
         );
@@ -7030,8 +8208,6 @@ export function IconWorkbench() {
       if (option) {
         const semanticSourceQuery = buildSemanticSourceQuery(brief, option, message);
         setSourceQuery(semanticSourceQuery);
-        setIsSourcePanelCollapsed(false);
-        void loadSourceLibrary(searchableSourceTab(sourceLibraryTab), semanticSourceQuery);
       }
     }
     if (shouldShowPreview) setShowPreview(true);
@@ -7063,12 +8239,21 @@ export function IconWorkbench() {
   }
 
   function submit() {
-    const message = input.trim();
+    const rawMessage = input.trim();
+    const message = rawMessage;
     if (!message) return;
     shouldStickToLatestRef.current = true;
     setIsChatPinnedToLatest(true);
+    setHasEnteredWorkbench(true);
     void runMessage(message);
     setInput("");
+  }
+
+  function startLandingPrompt(nextMessage: string, nextMode: WorkbenchMode = "chat") {
+    const message = nextMessage.trim();
+    if (!message) return;
+    setWorkbenchMode(nextMode);
+    setInput(message);
   }
 
   function startChatResize(event: React.PointerEvent<HTMLButtonElement>) {
@@ -7122,6 +8307,8 @@ export function IconWorkbench() {
       index: canvasInstances.length,
       previewSvg,
       previewShapes,
+      componentPrefix: activeOutputProfile.componentPrefix,
+      previewColor: activeOutputProfile.color,
     });
 
     setActiveCanvasInstances((current) => [...current, nextInstance]);
@@ -7196,84 +8383,252 @@ export function IconWorkbench() {
     window.addEventListener("pointerup", onPointerUp);
   }
 
-  return (
-    <main className="h-screen overflow-hidden bg-[#17171a] text-zinc-100">
-      <div className="flex h-screen flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-800/80 bg-[#202025] px-5 shadow-lg shadow-black/10">
-          <div className="flex items-center gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-500/15 text-base shadow-inner shadow-blue-500/10">
-              ✦
+  if (!hasEnteredWorkbench) {
+    return (
+      <main
+        className="iconops-dark iconops-make-home relative min-h-screen overflow-hidden text-white"
+        style={{ "--mx": `${landingPointer.x}%`, "--my": `${landingPointer.y}%` } as React.CSSProperties}
+        onPointerMove={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          setLandingPointer({
+            x: ((event.clientX - rect.left) / rect.width) * 100,
+            y: ((event.clientY - rect.top) / rect.height) * 100,
+          });
+        }}
+      >
+        <div className="pointer-events-none absolute inset-0">
+          <div className="iconops-cursor-glow" />
+          <div className="iconops-make-grid" />
+        </div>
+
+        <div className="absolute right-6 top-6 z-30">
+          <AccountTrigger user={authUser} hasSavedToken={figmaCredentialStatus.hasToken} onClick={() => setIsAuthDialogOpen(true)} />
+        </div>
+
+        <aside className="absolute left-0 top-0 z-20 flex h-full w-16 flex-col items-center justify-between py-7">
+          <div className="flex flex-col items-center gap-6">
+            <div className="text-2xl">✦</div>
+            <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/7 text-xl text-white/72 transition hover:bg-white/12 hover:text-white" aria-label="新建">
+              +
+            </button>
+            <button type="button" className="text-white/60 transition hover:text-white" aria-label="搜索">⌕</button>
+            <button type="button" className="text-white/60 transition hover:text-white" aria-label="团队库">□</button>
+          </div>
+          <div className="flex flex-col items-center gap-6">
+            <button type="button" className="text-white/56 transition hover:text-white" aria-label="设置">⚙</button>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-sm text-white/72">I</div>
+          </div>
+        </aside>
+
+        <div className="absolute left-6 top-6 z-20 hidden items-center gap-3 text-xs text-white/48 sm:flex">
+          <span className="font-medium tracking-[0.28em] text-cyan-200/90">ICONOPS</span>
+          <span className="h-1 w-1 rounded-full bg-white/24" />
+          <span>team icon generation</span>
+        </div>
+
+        <section className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 pb-24">
+          <div className="iconops-landing-card w-full max-w-5xl text-center">
+            <h1 className="iconops-landing-title text-[34px] font-medium leading-tight tracking-[-0.045em] text-white/88 sm:text-[52px]">
+              今天想做什么 icon？<span className="iconops-landing-emoji" aria-hidden="true">✨</span>
+            </h1>
+            <p className="mx-auto mt-4 max-w-3xl text-sm leading-6 text-white/42 sm:whitespace-nowrap">
+              输入语义、场景或批量清单，我会按团队规范生成可编辑 icon。
+            </p>
+
+            <div className="iconops-make-prompt relative mx-auto mt-9 max-w-3xl rounded-[30px] border border-white/10 bg-[#1f1f21]/88 p-4 text-left shadow-[0_24px_90px_rgba(0,0,0,0.42)] backdrop-blur-2xl transition focus-within:border-indigo-300/28 focus-within:shadow-[0_28px_120px_rgba(99,102,241,0.22)]">
+              <textarea
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    if (!isThinking && !hasStreamingMessage) submit();
+                  }
+                }}
+                rows={2}
+                className="min-h-[54px] w-full resize-none border-0 bg-transparent px-2 pb-4 text-[15px] leading-6 text-white outline-none placeholder:text-white/32"
+                placeholder="例如：做一个分享 icon，用在章节卡片右上角…"
+                autoFocus
+              />
+              <div className="flex items-center justify-between gap-3 border-t border-white/8 pt-3">
+                <div className="flex items-center gap-2">
+                  <button type="button" className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-xl text-white/72 transition hover:bg-white/8" aria-label="添加来源">+</button>
+                  <button type="button" className="rounded-full border border-white/10 px-3 py-2 text-xs text-white/56 transition hover:bg-white/8 hover:text-white">Build</button>
+                  <button type="button" className="rounded-full border border-indigo-300/22 bg-indigo-400/10 px-3 py-2 text-xs text-indigo-100/78 transition hover:bg-indigo-400/16 hover:text-white">
+                    {selectedTeamSpecLibrary.name}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={!input.trim() || isThinking || hasStreamingMessage}
+                  className="flex h-10 min-w-10 items-center justify-center rounded-full bg-indigo-500 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/28"
+                  aria-label="开始生成"
+                >
+                  {isThinking || hasStreamingMessage ? "生成中" : "生成"}
+                </button>
+              </div>
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-blue-300">Team Icon Maker</p>
-              <h1 className="text-base font-semibold tracking-tight">团队图标生成器</h1>
-              <p className="mt-0.5 text-xs text-zinc-500">来源 → 团队规范 → 画布结果</p>
+
+            <div className="mx-auto mt-10 max-w-4xl text-left">
+              <div className="mb-4 flex items-center justify-between text-sm text-white/64">
+                <span>团队规范 / 语义库云端库</span>
+                <button type="button" className="text-indigo-200/74 transition hover:text-indigo-100">上传 skill →</button>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                {teamSpecSkillRegistry.map((library) => (
+                  <button
+                    key={library.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedTeamSpecLibraryId(library.id);
+                      setInput(`使用「${library.name}」规范，生成一个 `);
+                    }}
+                    className={`group rounded-[22px] border p-4 text-left transition hover:-translate-y-1 hover:border-indigo-200/30 hover:bg-white/[0.065] ${
+                      selectedTeamSpecLibraryId === library.id
+                        ? "border-indigo-300/32 bg-indigo-400/10"
+                        : "border-white/9 bg-white/[0.035]"
+                    }`}
+                  >
+                    <div className={`mb-5 flex h-28 items-center justify-center rounded-2xl bg-gradient-to-br ${library.accent} text-3xl text-white/74 transition group-hover:text-indigo-100`}>
+                      ◇
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="truncate text-sm font-semibold text-white/84">{library.name}</div>
+                      <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-2 py-1 text-[11px] text-white/40">
+                        {library.status}
+                      </span>
+                    </div>
+                    <div className="mt-1 line-clamp-2 text-xs leading-5 text-white/38">{library.desc}</div>
+                    <div className="mt-3 truncate text-[11px] text-indigo-100/48">{library.skillName}</div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg border border-zinc-800 bg-[#18181b] p-1 text-xs">
-              {(["chat", "batch"] as WorkbenchMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setWorkbenchMode(mode)}
-                  className={`rounded px-3 py-1.5 font-semibold transition ${
-                    workbenchMode === mode ? "bg-blue-500 text-white" : "text-zinc-500 hover:text-zinc-100"
-                  }`}
-                >
-                  {mode === "chat" ? "单个生成" : "批量生成"}
-                </button>
-              ))}
-            </div>
-            <Badge tone={approvedPreview ? "green" : phase === "preview" ? "amber" : "blue"}>{phaseLabel(phase)}</Badge>
+        </section>
+        <AccountDialog
+          open={isAuthDialogOpen}
+          user={authUser}
+          figma={figmaCredentialStatus}
+          onClose={() => setIsAuthDialogOpen(false)}
+          onAuthenticated={handleAuthenticated}
+          onLogout={handleLogout}
+          onDeleteToken={handleDeleteFigmaToken}
+        />
+      </main>
+    );
+  }
+
+  return (
+    <main className="iconops-dark iconops-recraft-workbench relative h-screen overflow-hidden text-white">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="iconops-ambient-orb iconops-ambient-orb-a opacity-70" />
+        <div className="iconops-ambient-orb iconops-ambient-orb-b opacity-60" />
+        <div className="iconops-scanline absolute inset-0 opacity-35" />
+      </div>
+      <div className="relative z-10 flex h-screen flex-col">
+        <header className="iconops-recraft-topbar flex h-16 shrink-0 items-center justify-between border-b border-white/10 bg-[#252525] px-3">
+          <div className="flex h-full items-center gap-2">
+            <button className="iconops-recraft-logo flex h-10 items-center gap-2 rounded-xl border border-white/12 bg-white/[0.04] px-3 text-lg font-black text-white" type="button">R</button>
+            <button
+              type="button"
+              onClick={() => setWorkbenchMode("chat")}
+              className={`iconops-recraft-nav flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${workbenchMode === "chat" ? "is-active text-white" : "text-white/66 hover:bg-white/[0.06]"}`}
+            >
+              ✧ AI chat
+            </button>
+            <button
+              type="button"
+              onClick={() => setWorkbenchMode("batch")}
+              className={`iconops-recraft-nav flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold transition ${workbenchMode === "batch" ? "is-active text-white" : "text-white/66 hover:bg-white/[0.06]"}`}
+            >
+              ⟲ Create
+            </button>
+            <button type="button" className="iconops-recraft-nav flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white/66 transition hover:bg-white/[0.06]">▦ Library</button>
+          </div>
+          <div className="absolute left-1/2 -translate-x-1/2 text-sm font-semibold text-white/86">IconOps Project⌄</div>
+          <div className="flex items-center gap-2">
+            <AccountTrigger user={authUser} hasSavedToken={figmaCredentialStatus.hasToken} onClick={() => setIsAuthDialogOpen(true)} />
+            <button type="button" className="iconops-recraft-pill rounded-xl border border-white/10 bg-white/[0.035] px-4 py-2 text-sm text-white/76">{Math.round(canvasZoom * 100)}%</button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsFigmaSetupExpanded(true);
+                if (figmaTargetUrl.trim()) void prepareBatchFigmaWrite();
+              }}
+              disabled={!totalCanvasInstanceCount || batchFigmaWriteStatus === "building"}
+              className="iconops-recraft-pill rounded-xl bg-white/[0.08] px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/[0.12] disabled:opacity-40"
+            >
+              写入 Figma
+            </button>
+            <button type="button" className="iconops-recraft-credit rounded-xl border border-indigo-400 bg-indigo-500/22 px-3 py-2 text-sm font-semibold text-indigo-100">✧ {totalCanvasInstanceCount}</button>
           </div>
         </header>
 
-        <FigmaNativeSetupBar
-          targetUrl={figmaTargetUrl}
-          token={figmaWriteToken}
-          tokenPlaceholder={figmaSessionToken ? "已可复用对话里的 token；也可覆盖" : "Figma Token：figd_..."}
-          status={batchFigmaWriteStatus}
-          message={batchFigmaWriteMessage}
-          itemCount={totalCanvasInstanceCount}
-          hasJsonSpec={Boolean(batchFigmaWriteRun?.figma.jsonSpec)}
-          hasScript={Boolean(batchFigmaWriteRun?.figma.script)}
-          writeJob={figmaWriteJob}
-          bridgeStatus={figmaBridgeStatus}
-          jsonCopyStatus={batchFigmaJsonCopyStatus}
-          scriptCopyStatus={batchFigmaCopyStatus}
-          onTargetUrlChange={setFigmaTargetUrl}
-          onTokenChange={setFigmaWriteToken}
-          onPrepare={() => void prepareBatchFigmaWrite()}
-          onCopyJson={() => void copyBatchFigmaJsonSpec()}
-          onCopyScript={() => void copyBatchFigmaWriteScript()}
+        <AccountDialog
+          open={isAuthDialogOpen}
+          user={authUser}
+          figma={figmaCredentialStatus}
+          onClose={() => setIsAuthDialogOpen(false)}
+          onAuthenticated={handleAuthenticated}
+          onLogout={handleLogout}
+          onDeleteToken={handleDeleteFigmaToken}
         />
 
-        <section className="flex min-h-0 flex-1">
+        {isFigmaSetupExpanded ? (
+          <FigmaNativeSetupBar
+            targetUrl={figmaTargetUrl}
+            token={figmaWriteToken}
+            tokenPlaceholder={figmaCredentialStatus.hasToken ? "账户已保存 Token；输入可替换" : figmaSessionToken ? "已可复用当前会话 Token；也可覆盖" : "Figma Token：figd_..."}
+            status={batchFigmaWriteStatus}
+            message={batchFigmaWriteMessage}
+            itemCount={totalCanvasInstanceCount}
+            hasJsonSpec={Boolean(batchFigmaWriteRun?.figma.jsonSpec)}
+            hasScript={Boolean(batchFigmaWriteRun?.figma.script)}
+            writeJob={figmaWriteJob}
+            bridgeStatus={figmaBridgeStatus}
+            jsonCopyStatus={batchFigmaJsonCopyStatus}
+            scriptCopyStatus={batchFigmaCopyStatus}
+            onTargetUrlChange={setFigmaTargetUrl}
+            onTokenChange={setFigmaWriteToken}
+            onTokenBlur={() => {
+              if (authUser && figmaWriteToken.trim()) void persistFigmaToken(figmaWriteToken);
+            }}
+            onPrepare={() => void prepareBatchFigmaWrite()}
+            onCopyJson={() => void copyBatchFigmaJsonSpec()}
+            onCopyScript={() => void copyBatchFigmaWriteScript()}
+          />
+        ) : null}
+
+        <section className="iconops-workbench-shell relative flex min-h-0 flex-1 bg-[#181818] p-0">
           <aside
-            className="relative flex min-h-0 shrink-0 flex-col border-r border-zinc-800 bg-[#212126] p-4"
-            style={{ width: chatWidth }}
+            className="iconops-panel iconops-chat-panel iconops-recraft-chat relative flex min-h-0 shrink-0 flex-col rounded-none border-0 border-r border-white/10 bg-[#252525] p-4 shadow-none"
+            style={{ width: Math.min(chatWidth, 420) }}
           >
             <div className="mb-3 shrink-0">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-semibold">{workbenchMode === "chat" ? "告诉我你要什么" : "批量整理图标"}</h2>
+                <div>
+                  <h2 className="text-sm font-semibold text-white/86">{workbenchMode === "chat" ? "AI chat" : "Batch queue"}</h2>
+                  <p className="mt-1 text-xs leading-5 text-white/38">
+                    {workbenchMode === "chat" ? "描述需求，结果直接落到画布。" : "粘贴资料，批量生成到画布。"}
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={startNewConversation}
-                  className="rounded-lg border border-zinc-700 bg-black/20 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-blue-400 hover:bg-blue-500/10 hover:text-blue-100"
+                  className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/50 transition hover:bg-white/[0.08] hover:text-white"
                   title="清空当前对话与未完成预览，保留画布里的图标"
                 >
-                  新建对话
+                  New
                 </button>
               </div>
-              <p className="mt-1 text-xs leading-5 text-zinc-500">
-                {workbenchMode === "chat" ? "缺信息时我只追问一句。" : "我会整理成多个图标任务。"}
-              </p>
             </div>
 
             <div
               ref={chatScrollRef}
               onScroll={updateChatPinnedState}
-              className="relative min-h-0 flex-1 space-y-3 overflow-auto pr-1"
+              className="iconops-chat-scroll relative min-h-0 flex-1 space-y-3 overflow-auto pr-1"
             >
               {workbenchMode === "batch" ? (
                 <BatchProductionPanel
@@ -7298,7 +8653,7 @@ export function IconWorkbench() {
                     />
                   ))}
                   {isThinking && !hasStreamingMessage ? (
-                    <div className="mr-8 rounded-lg border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-100">
+                    <div className="mr-8 rounded-2xl border border-indigo-400/18 bg-indigo-400/10 px-4 py-3 text-sm text-white/62">
                       正在判断下一步：补信息、找参考、出画法，还是生成预览…
                     </div>
                   ) : null}
@@ -7309,7 +8664,7 @@ export function IconWorkbench() {
                 <button
                   type="button"
                   onClick={jumpChatToLatest}
-                  className="sticky bottom-3 left-1/2 z-20 flex h-10 w-10 -translate-x-1/2 items-center justify-center rounded-full border border-zinc-700 bg-[#151518]/95 text-2xl leading-none text-zinc-100 shadow-xl shadow-black/30 backdrop-blur transition hover:border-blue-400 hover:bg-blue-500/20 hover:text-blue-100"
+                  className="sticky bottom-3 left-1/2 z-20 flex h-10 w-10 -translate-x-1/2 items-center justify-center rounded-full border border-white/10 bg-white/12 text-2xl leading-none text-white/78 shadow-xl shadow-black/30 backdrop-blur transition hover:bg-white/18 hover:text-white"
                   aria-label="返回最新消息"
                   title="返回最新消息"
                 >
@@ -7318,7 +8673,7 @@ export function IconWorkbench() {
               ) : null}
             </div>
 
-            <div className={`mt-3 shrink-0 rounded-2xl border border-zinc-700/80 bg-[#1b1b1f] p-3 shadow-2xl shadow-black/20 ${workbenchMode === "batch" ? "hidden" : ""}`}>
+            <div className={`iconops-recraft-composer mt-3 shrink-0 rounded-[22px] border border-white/12 bg-white/[0.035] p-3 ${workbenchMode === "batch" ? "hidden" : ""}`}>
               <textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
@@ -7328,17 +8683,17 @@ export function IconWorkbench() {
                     if (!isThinking && !hasStreamingMessage) submit();
                   }
                 }}
-                className="h-16 w-full resize-none border-0 bg-transparent text-sm leading-5 text-zinc-100 outline-none placeholder:text-zinc-600"
-                placeholder={workbenchMode === "chat" ? "说说你要什么图标…" : "粘贴图标清单、文档片段或 Figma 链接…"}
+                className="h-16 w-full resize-none border-0 bg-transparent text-sm leading-5 text-white outline-none placeholder:text-white/34"
+                placeholder={workbenchMode === "chat" ? "Ask anything" : "粘贴图标清单、文档片段或 Figma 链接…"}
               />
               <div className="mt-2 flex items-center justify-between">
-                <span className="text-xs text-zinc-600">Enter 发送 · Shift + Enter 换行</span>
+                <span className="text-xs text-white/34">Enter 发送 · Shift + Enter 换行</span>
                 <button
                   onClick={submit}
                   disabled={isThinking || hasStreamingMessage}
-                  className="rounded bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
                 >
-                  {isThinking || hasStreamingMessage ? "生成中" : "发送"}
+                  {isThinking || hasStreamingMessage ? "…" : "↑"}
                 </button>
               </div>
             </div>
@@ -7348,22 +8703,22 @@ export function IconWorkbench() {
               onPointerDown={startChatResize}
               onDoubleClick={() => setChatWidth(420)}
               className={`absolute right-[-5px] top-0 z-20 h-full w-2 cursor-col-resize transition ${
-                isResizingChat ? "bg-blue-500/40" : "bg-transparent hover:bg-blue-500/25"
+                isResizingChat ? "bg-indigo-500/40" : "bg-transparent hover:bg-indigo-500/25"
               }`}
             >
-              <span className="absolute right-0 top-1/2 h-14 w-px -translate-y-1/2 rounded bg-zinc-600" />
+              <span className="absolute right-0 top-1/2 h-14 w-px -translate-y-1/2 rounded bg-white/22" />
             </button>
           </aside>
 
-          <section className="flex min-h-0 min-w-[420px] flex-1 flex-col bg-[#18181b]">
-            <div className="flex h-12 shrink-0 items-center justify-between border-b border-zinc-800 px-4">
+          <section className="iconops-canvas-panel iconops-recraft-canvas flex min-h-0 min-w-[420px] flex-1 flex-col overflow-hidden rounded-none border-0 bg-[#181818] shadow-none">
+            <div className="iconops-recraft-canvasbar flex h-12 shrink-0 items-center justify-between border-b border-white/8 bg-[#181818] px-4">
               <div>
-                <span className="text-base font-semibold">图标画布</span>
-                <span className="ml-3 text-xs text-zinc-500">
-                  {activeCanvasLayer?.name ?? "画布"} · {canvasInstances.length} 个图标
+                <span className="text-sm font-semibold text-white/64">Vector canvas</span>
+                <span className="ml-3 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-xs text-white/46">
+                  {activeCanvasLayer?.name ?? "画布"} · {canvasInstances.length} icons
                 </span>
                 {selectedSource ? (
-                  <span className="ml-3 text-xs text-blue-300">来源：{selectedSource.source} / {selectedSource.name}</span>
+                  <span className="ml-3 text-xs text-cyan-300/80">来源：{selectedSource.source} / {selectedSource.name}</span>
                 ) : null}
               </div>
               <div className="flex items-center gap-2">
@@ -7371,14 +8726,14 @@ export function IconWorkbench() {
                   type="button"
                   onClick={() => searchCurrentSourceLibrary()}
                   disabled={sourceLoading}
-                  className="rounded border border-blue-500/40 bg-blue-500/10 px-2 py-1 text-xs font-semibold text-blue-100 transition hover:border-blue-300 hover:bg-blue-500/20 disabled:cursor-wait disabled:border-zinc-700 disabled:bg-zinc-800 disabled:text-zinc-500"
+                  className="rounded-xl bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/68 transition hover:bg-white/[0.12] disabled:cursor-wait disabled:opacity-40"
                 >
-                  {sourceLoading ? "同步参考中" : canvasSourceCandidates.length ? `参考 ${canvasSourceCandidates.length}` : "找参考图标"}
+                  {sourceLoading ? "检索中" : canvasSourceCandidates.length ? `参考图标 ${canvasSourceCandidates.length}` : "找参考图标"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsSourcePanelCollapsed((current) => !current)}
-                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-blue-400 hover:text-blue-100"
+                  className="rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-white/56 transition hover:bg-white/[0.08] hover:text-white"
                 >
                   {isSourcePanelCollapsed ? "展开来源" : "收起来源"}
                 </button>
@@ -7386,90 +8741,37 @@ export function IconWorkbench() {
                   <button
                     onClick={addCurrentPreviewToCanvas}
                     disabled={!showPreview || !selectedOption || previewHasQualityIssues}
-                    className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-blue-400 hover:text-blue-100 disabled:cursor-not-allowed disabled:text-zinc-600"
+                    className="rounded-xl bg-indigo-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-400 disabled:hidden"
                   >
-                    {previewHasQualityIssues ? "预览需修正" : "把当前图标放到画布"}
+                    放到画布
                   </button>
                 ) : (
                   <button
                     onClick={queueBatchTasksToCanvas}
                     disabled={!batchTasks.length}
-                    className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-emerald-400 hover:text-emerald-100 disabled:cursor-not-allowed disabled:text-zinc-600"
+                    className="rounded-xl bg-indigo-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     批量放入画布
                   </button>
                 )}
-                <button
-                  onClick={focusAllCanvasInstances}
-                  disabled={!canvasInstances.length && !showPreview}
-                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-blue-400 hover:text-blue-100 disabled:cursor-not-allowed disabled:text-zinc-600"
-                >
-                  适配全部
-                </button>
-                <button
-                  onClick={focusSelectedCanvasInstance}
-                  disabled={!selectedInstance}
-                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-blue-400 hover:text-blue-100 disabled:cursor-not-allowed disabled:text-zinc-600"
-                >
-                  定位选中
-                </button>
-                <button
-                  onClick={() => setCanvasZoom((current) => clampCanvasZoom(current - 0.1))}
-                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-zinc-500"
-                >
-                  -
-                </button>
-                <span className="w-12 text-center text-xs text-zinc-500">{Math.round(canvasZoom * 100)}%</span>
-                <button
-                  onClick={() => setCanvasZoom((current) => clampCanvasZoom(current + 0.1))}
-                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-zinc-500"
-                >
-                  +
-                </button>
-                <button
-                  onClick={() => {
-                    setCanvasZoom(1);
-                    setCanvasPan({ x: 0, y: 0 });
-                  }}
-                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-zinc-500"
-                >
-                  重置视图
-                </button>
-                <button
-                  onClick={createCanvasLayer}
-                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-blue-400 hover:text-blue-100"
-                >
-                  新增画布
-                </button>
-                <button
-                  onClick={clearActiveCanvasLayer}
-                  disabled={!canvasInstances.length}
-                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-amber-400 hover:text-amber-100 disabled:cursor-not-allowed disabled:text-zinc-600"
-                >
-                  清空当前
-                </button>
-                <button
-                  onClick={deleteSelectedCanvasInstance}
-                  disabled={!selectedInstanceId}
-                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-red-400 hover:text-red-100 disabled:cursor-not-allowed disabled:text-zinc-600"
-                  title="也可以按 Delete / Backspace 删除选中的图标"
-                >
-                  删除选中
-                </button>
-                {workbenchMode === "chat" ? (
-                  <>
-                    <Badge tone={showPreview ? "green" : "amber"}>{showPreview ? "已有预览" : "未生成"}</Badge>
-                    <Badge tone={approvedPreview ? "green" : "amber"}>{approvedPreview ? "已确认" : "等你确认"}</Badge>
-                  </>
-                ) : (
-                  <>
-                    <Badge tone={batchTasks.length ? "green" : "neutral"}>{batchTasks.length ? `清单 ${batchTasks.length}` : "未识别"}</Badge>
-                    <Badge tone={canvasInstances.length ? "blue" : "neutral"}>画布 {canvasInstances.length}</Badge>
-                  </>
-                )}
+                <div className="ml-1 flex items-center rounded-xl border border-white/10 bg-white/[0.035] p-1">
+                  <button
+                    onClick={() => setCanvasZoom((current) => clampCanvasZoom(current - 0.1))}
+                    className="rounded px-2 py-1 text-xs text-white/56 transition hover:bg-white/[0.08] hover:text-white"
+                  >
+                    -
+                  </button>
+                  <span className="w-12 text-center text-xs text-white/54">{Math.round(canvasZoom * 100)}%</span>
+                  <button
+                    onClick={() => setCanvasZoom((current) => clampCanvasZoom(current + 0.1))}
+                    className="rounded px-2 py-1 text-xs text-white/56 transition hover:bg-white/[0.08] hover:text-white"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </div>
-            <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b border-zinc-800 bg-[#16161a] px-4">
+            <div className={`h-10 shrink-0 items-center gap-2 overflow-x-auto border-b border-white/10 bg-black/16 px-4 backdrop-blur-xl ${canvasLayers.length > 1 || canvasInstances.length ? "flex" : "hidden"}`}>
               {canvasLayers.map((layer) => (
                 <button
                   key={layer.id}
@@ -7477,8 +8779,8 @@ export function IconWorkbench() {
                   onClick={() => switchCanvasLayer(layer.id)}
                   className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs transition ${
                     layer.id === activeCanvasLayerId
-                      ? "border-blue-400 bg-blue-500/15 text-blue-100"
-                      : "border-zinc-700 bg-black/20 text-zinc-400 hover:border-zinc-500 hover:text-zinc-100"
+                      ? "border-blue-300 bg-blue-50 text-blue-700"
+                      : "border-slate-200 bg-white text-white/42 hover:border-slate-300 hover:text-white/86"
                   }`}
                 >
                   {layer.name} · {layer.instances.length}
@@ -7488,7 +8790,7 @@ export function IconWorkbench() {
                 type="button"
                 onClick={focusAllCanvasInstances}
                 disabled={!canvasInstances.length && !showPreview}
-                className="shrink-0 rounded-lg border border-zinc-700 bg-black/20 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-blue-400 hover:text-blue-100 disabled:cursor-not-allowed disabled:text-zinc-600"
+                className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-white/58 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-white/32"
               >
                 定位全部
               </button>
@@ -7496,50 +8798,47 @@ export function IconWorkbench() {
                 type="button"
                 onClick={focusSelectedCanvasInstance}
                 disabled={!selectedInstance}
-                className="shrink-0 rounded-lg border border-zinc-700 bg-black/20 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-blue-400 hover:text-blue-100 disabled:cursor-not-allowed disabled:text-zinc-600"
+                className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-white/58 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:text-white/32"
               >
                 定位选中
               </button>
-              <span className="shrink-0 text-xs text-zinc-600">共 {totalCanvasInstanceCount} 个图标 · 点图层可定位 · Delete 删除选中</span>
+              <span className="shrink-0 text-xs text-white/32">{totalCanvasInstanceCount} 个可交付 · Delete 删除选中</span>
             </div>
-            <SourceLibraryPanel
-              candidates={canvasSourceCandidates}
-              activeTab={sourceLibraryTab}
-              collapsed={isSourcePanelCollapsed}
-              loading={sourceLoading}
-              message={sourceMessage}
-              teamLibrarySummary={visibleTeamLibrarySummary}
-              teamLibraryStatus={teamLibraryTrainingStatus}
-              teamLibraryMessage={teamLibraryTrainingMessage}
-              selectedSource={selectedSource}
-              selectedCandidateIds={selectedCandidateIds}
-              query={sourceQuery}
-              importedState={importedSourceState}
-              onToggleCollapsed={() => setIsSourcePanelCollapsed((current) => !current)}
-              onTabChange={updateSourceLibrary}
-              onQueryChange={setSourceQuery}
-              onChooseSource={chooseSourceCandidate}
-              onCandidateDragStart={startSourceCandidateDrag}
-              onToggleCandidate={toggleCandidateSelection}
-              onSelectVisibleCandidates={selectVisibleCandidates}
-              onAddSelectedCandidates={addSelectedCandidatesToCanvas}
-              onClearSelectedCandidates={() => setSelectedSourceCandidates([])}
-              onSearchCurrentQuery={searchCurrentSourceLibrary}
-              onLoadTeamLibrary={() => void loadTeamLibrary({ announce: true })}
-            />
-            <div className="flex h-[82px] shrink-0 border-b border-zinc-800 bg-[#151518]/95">
-              <TeamSpecProcessorBar
-                sourceLabel={workbenchMode === "batch" ? "批量资料 / 图标清单" : currentSourceLabel}
-                hasCandidates={workbenchMode === "batch" ? Boolean(batchTasks.length || batchInput.trim()) : Boolean(canvasSourceCandidates.length || selectedSource)}
-                hasPreview={workbenchMode === "batch" ? Boolean(canvasInstances.length) : showPreview}
-                warnings={specWarnings}
-              />
-            </div>
-
-            <div className="min-h-0 flex-1">
+            <div className="relative min-h-0 flex-1">
+              {!isSourcePanelCollapsed ? (
+                <div className="pointer-events-none absolute left-24 right-6 top-4 z-30">
+                  <div className="pointer-events-auto mx-auto max-w-5xl">
+                    <SourceLibraryPanel
+                      candidates={canvasSourceCandidates}
+                      activeTab={sourceLibraryTab}
+                      collapsed={isSourcePanelCollapsed}
+                      loading={sourceLoading}
+                      message={sourceMessage}
+                      teamLibrarySummary={visibleTeamLibrarySummary}
+                      teamLibraryStatus={teamLibraryTrainingStatus}
+                      teamLibraryMessage={teamLibraryTrainingMessage}
+                      selectedSource={selectedSource}
+                      selectedCandidateIds={selectedCandidateIds}
+                      query={sourceQuery}
+                      importedState={importedSourceState}
+                      onToggleCollapsed={() => setIsSourcePanelCollapsed((current) => !current)}
+                      onTabChange={updateSourceLibrary}
+                      onQueryChange={setSourceQuery}
+                      onChooseSource={chooseSourceCandidate}
+                      onCandidateDragStart={startSourceCandidateDrag}
+                      onToggleCandidate={toggleCandidateSelection}
+                      onSelectVisibleCandidates={selectVisibleCandidates}
+                      onAddSelectedCandidates={addSelectedCandidatesToCanvas}
+                      onClearSelectedCandidates={() => setSelectedSourceCandidates([])}
+                      onSearchCurrentQuery={searchCurrentSourceLibrary}
+                      onLoadTeamLibrary={() => void loadTeamLibrary({ announce: true })}
+                    />
+                  </div>
+                </div>
+              ) : null}
               <div
                 ref={canvasViewportRef}
-                className="relative h-full min-h-0 select-none overflow-hidden bg-[radial-gradient(circle_at_center,#25252b_0,#18181b_52%,#141416_100%)]"
+                className="iconops-stage relative h-full min-h-0 select-none overflow-hidden bg-[#2b2b2b]"
                 onWheel={handleCanvasWheel}
                 onPointerDown={startCanvasPan}
                 onClick={() => {
@@ -7552,17 +8851,25 @@ export function IconWorkbench() {
               >
                 <div
                   className={`pointer-events-none absolute inset-3 z-10 rounded-2xl border-2 border-dashed transition ${
-                    isCanvasDropActive ? "border-blue-400 bg-blue-500/10 opacity-100" : "border-transparent opacity-0"
+                    isCanvasDropActive ? "border-blue-400 bg-indigo-500/10 opacity-100" : "border-transparent opacity-0"
                   }`}
                 />
-                <div className="absolute left-3 top-3 z-20 rounded-xl border border-zinc-800 bg-[#18181b]/90 px-3 py-2 text-xs leading-5 text-zinc-400 shadow-lg shadow-black/10">
-                  {activeCanvasLayer?.name ?? "画布"} · 从上方参考面板拖入 · 拖动图标调整位置 · Delete 删除选中 · ⌘/Ctrl + 滚轮缩放
+                <div className="iconops-recraft-tool-palette absolute left-4 top-1/2 z-20 -translate-y-1/2 rounded-[22px] border border-white/10 bg-[#2b2b2b]/95 p-2 shadow-2xl shadow-black/35 backdrop-blur-xl">
+                  <button type="button" className="is-active" title="选择">↖</button>
+                  <button type="button" title="拖拽画布">✋</button>
+                  <button type="button" onClick={(event) => { event.stopPropagation(); searchCurrentSourceLibrary(); }} title="参考图标">▦</button>
+                  <button type="button" onClick={(event) => { event.stopPropagation(); void loadTeamLibrary({ announce: true }); }} title="团队库">◇</button>
+                  <button type="button" title="文本标注">T</button>
+                  <button type="button" title="上传">↥</button>
+                </div>
+                <div className="iconops-canvas-hint absolute left-24 top-4 z-20 rounded-full border border-white/10 bg-[#2f2f2f]/78 px-3 py-2 text-xs leading-5 text-white/38 shadow-lg shadow-black/20 backdrop-blur-xl">
+                  {activeCanvasLayer?.name ?? "画布"} · 拖拽移动 · Delete 删除
                   {canvasInstances.some((instance) => instance.sourceName?.startsWith(aiPreviewGridSourcePrefix)) ? (
                     <div className="text-blue-200">AI 方案已在画布两排展示：点击任一方案即可设为当前预览。</div>
                   ) : null}
                   {isCanvasDropActive ? <div className="text-blue-200">松手后会套团队规范并放置到当前位置</div> : null}
                 </div>
-                <div className="absolute right-3 top-3 z-20 flex items-center gap-2 rounded border border-zinc-800 bg-[#18181b]/90 px-3 py-2 text-xs text-zinc-400">
+                <div className="iconops-canvas-mini-actions absolute right-4 top-4 z-20 flex max-w-[56%] items-center gap-2 overflow-hidden rounded-full border border-white/10 bg-[#2f2f2f]/78 px-3 py-2 text-xs text-white/42 shadow-lg shadow-black/20 backdrop-blur">
                   <span>{canvasInstances.length} icons</span>
                   {canvasInstances.length ? (
                     <button
@@ -7570,20 +8877,20 @@ export function IconWorkbench() {
                         event.stopPropagation();
                         focusAllCanvasInstances();
                       }}
-                      className="rounded border border-zinc-700 px-2 py-0.5 text-zinc-300 hover:border-blue-400 hover:text-blue-100"
+                      className="rounded border border-white/10 px-2 py-0.5 text-white/54 hover:bg-white/[0.08] hover:text-white"
                     >
                       看全部
                     </button>
                   ) : null}
                   {selectedInstance ? (
                     <>
-                      <span>选中：{selectedInstance.name}</span>
+                      <span className="max-w-[180px] truncate">选中：{selectedInstance.name}</span>
                       <button
                         onClick={(event) => {
                           event.stopPropagation();
                           focusSelectedCanvasInstance();
                         }}
-                        className="rounded border border-zinc-700 px-2 py-0.5 text-zinc-300 hover:border-blue-400 hover:text-blue-100"
+                        className="rounded border border-white/10 px-2 py-0.5 text-white/54 hover:bg-white/[0.08] hover:text-white"
                       >
                         定位
                       </button>
@@ -7592,7 +8899,7 @@ export function IconWorkbench() {
                           event.stopPropagation();
                           updateSelectedInstanceScale(selectedInstance.scale - 0.1);
                         }}
-                        className="rounded border border-zinc-700 px-2 py-0.5 text-zinc-300 hover:border-zinc-500"
+                        className="rounded border border-white/10 px-2 py-0.5 text-white/54 hover:bg-white/[0.08] hover:text-white"
                       >
                         缩小
                       </button>
@@ -7601,7 +8908,7 @@ export function IconWorkbench() {
                           event.stopPropagation();
                           updateSelectedInstanceScale(selectedInstance.scale + 0.1);
                         }}
-                        className="rounded border border-zinc-700 px-2 py-0.5 text-zinc-300 hover:border-zinc-500"
+                        className="rounded border border-white/10 px-2 py-0.5 text-white/54 hover:bg-white/[0.08] hover:text-white"
                       >
                         放大
                       </button>
@@ -7610,7 +8917,7 @@ export function IconWorkbench() {
                           event.stopPropagation();
                           deleteSelectedCanvasInstance();
                         }}
-                        className="rounded border border-zinc-700 px-2 py-0.5 text-zinc-300 hover:border-red-400 hover:text-red-100"
+                        className="rounded border border-white/10 px-2 py-0.5 text-white/54 hover:bg-red-500/15 hover:text-red-200"
                       >
                         删除
                       </button>
@@ -7619,7 +8926,7 @@ export function IconWorkbench() {
                 </div>
                 <div
                   ref={canvasSurfaceRef}
-                  className="absolute left-1/2 top-1/2 h-[1200px] w-[1600px] origin-center rounded-2xl border border-zinc-800 bg-[linear-gradient(rgba(255,255,255,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.045)_1px,transparent_1px)] bg-[size:48px_48px]"
+                  className="iconops-canvas-surface absolute left-1/2 top-1/2 h-[1200px] w-[1600px] origin-center rounded-[34px] border border-white/10 bg-[linear-gradient(rgba(148,163,184,0.10)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.10)_1px,transparent_1px)] bg-[size:48px_48px] shadow-2xl shadow-black/70"
                   style={{
                     transform: `translate(calc(-50% + ${canvasPan.x}px), calc(-50% + ${canvasPan.y}px)) scale(${canvasZoom})`,
                   }}
@@ -7631,7 +8938,7 @@ export function IconWorkbench() {
                 >
                   {showPreview && selectedOption ? (
                     <div
-                      className={`absolute left-[120px] top-[110px] z-10 rounded-2xl border bg-white p-4 shadow-2xl shadow-black/30 ${
+                      className={`absolute left-[120px] top-[110px] z-10 rounded-2xl border bg-white p-4 shadow-2xl shadow-slate-200/70 ${
                         previewReview.blockers.length ? "border-amber-400/80" : "border-emerald-400/60"
                       }`}
                       style={{ width: canvasInstanceBaseSize, height: canvasInstanceBaseSize }}
@@ -7652,8 +8959,8 @@ export function IconWorkbench() {
                       <div
                         className={`pointer-events-none absolute -bottom-7 left-0 max-w-[260px] truncate rounded border px-2 py-1 text-xs ${
                           previewReview.blockers.length
-                            ? "border-amber-500/30 bg-[#2b2111]/95 text-amber-100"
-                            : "border-emerald-500/30 bg-[#102019]/95 text-emerald-100"
+                            ? "border-amber-500/30 bg-amber-50 text-amber-700"
+                            : "border-emerald-500/30 bg-emerald-50 text-emerald-700"
                         }`}
                       >
                         {previewReview.blockers.length ? "预览需修正" : "当前预览"} · {selectedOption.title}
@@ -7678,13 +8985,15 @@ export function IconWorkbench() {
                   ))}
                   {!canvasInstances.length && !showPreview ? (
                     <div className="absolute inset-0 flex items-center justify-center text-center">
-                      <div className="max-w-md rounded-2xl border border-dashed border-zinc-700 bg-[#18181b]/80 p-8">
-                        <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-lg border border-dashed border-zinc-700 text-3xl text-zinc-600">
-                          24
+                      <div className="iconops-workbench-empty max-w-sm rounded-none border-0 bg-transparent p-8 shadow-none">
+                        <div className="mx-auto mb-5 grid h-32 w-48 grid-cols-2 gap-3 rounded-2xl border border-dashed border-white/12 p-4 text-white/32">
+                          <div className="rounded-xl border border-dashed border-white/12" />
+                          <div className="rounded-xl border border-dashed border-white/12" />
+                          <div className="col-span-2 rounded-xl border border-dashed border-white/12" />
                         </div>
-                        <h2 className="text-base font-semibold">画布还是空的</h2>
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">
-                          左侧说“我要一个分享图标”，或者切到批量生成粘贴清单，图标会出现在这里。
+                        <h2 className="text-sm font-semibold text-white/42">Working out the details.</h2>
+                        <p className="mt-2 text-sm leading-6 text-white/46">
+                          生成结果会出现在画布中。
                         </p>
                       </div>
                     </div>
@@ -7694,27 +9003,27 @@ export function IconWorkbench() {
             </div>
           </section>
 
+
           <aside
-            className="relative flex min-h-0 shrink-0 flex-col border-l border-zinc-800 bg-[#202024]"
+            className={`iconops-panel iconops-inspector-panel absolute bottom-0 right-0 top-0 z-40 flex min-h-0 flex-col rounded-none border-0 border-l border-white/10 bg-[#242424] shadow-none transition duration-300 ${selectedInstance || showPreview ? "translate-x-0 opacity-100" : "pointer-events-none translate-x-full opacity-0"}`}
             style={{ width: inspectorWidth }}
           >
-            <div className="shrink-0 border-b border-zinc-800 p-3">
+            <div className="shrink-0 border-b border-white/10 bg-[#242424] p-4">
               <div className="mb-3 flex items-center justify-between">
                 <div>
-                  <h2 className="text-base font-semibold">调整与导出</h2>
-                  <p className="mt-1 text-xs text-zinc-500">选中画布上的图标后，在这里微调尺寸、检查是否合规、准备交付。</p>
+                  <h2 className="text-sm font-semibold text-white/86">Icon details</h2>
+                  <p className="mt-1 text-xs text-white/42">只显示当前选中图标的关键操作。</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-600">{inspectorWidth}px</span>
                   <Badge tone={selectedElement.locked ? "amber" : "green"}>{selectedElement.locked ? "固定" : "可编辑"}</Badge>
                 </div>
               </div>
-              <div className="grid grid-cols-4 gap-1 rounded-lg bg-[#18181b] p-1 text-xs">
+              <div className="grid grid-cols-4 gap-1 rounded-2xl border border-white/10 bg-white/[0.05] p-1 text-xs shadow-inner shadow-black/30">
                 {(["properties", "layers", "spec", "quality"] as InspectorTab[]).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`rounded px-2 py-2 ${activeTab === tab ? "bg-blue-500 text-white" : "text-zinc-400 hover:text-zinc-100"}`}
+                    className={`rounded-xl px-2 py-2 font-semibold transition ${activeTab === tab ? "bg-white text-black shadow-sm shadow-cyan-500/20 ring-1 ring-white/20" : "text-white/46 hover:bg-white/10 hover:text-white"}`}
                   >
                     {inspectorLabel(tab)}
                   </button>
@@ -7727,67 +9036,39 @@ export function IconWorkbench() {
               onPointerDown={startInspectorResize}
               onDoubleClick={() => setInspectorWidth(360)}
               className={`absolute left-[-5px] top-0 z-20 h-full w-2 cursor-col-resize transition ${
-                isResizingInspector ? "bg-blue-500/40" : "bg-transparent hover:bg-blue-500/25"
+                isResizingInspector ? "bg-indigo-500/40" : "bg-transparent hover:bg-indigo-500/25"
               }`}
             >
-              <span className="absolute left-0 top-1/2 h-14 w-px -translate-y-1/2 rounded bg-zinc-600" />
+              <span className="absolute left-0 top-1/2 h-14 w-px -translate-y-1/2 rounded bg-white/20" />
             </button>
 
             <div className="min-h-0 flex-1 overflow-auto p-4">
               {activeTab === "properties" ? (
                 <div className="space-y-3">
-                  <div className="rounded border border-blue-500/20 bg-blue-500/10 p-3">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <div>
-                        <h3 className="text-base font-semibold text-blue-100">团队规范已套用</h3>
-                        {isSpecCardCollapsed ? (
-                          <p className="mt-1 text-xs leading-5 text-blue-100/70">24×24 / 2px / #0F1218 / Figma native</p>
-                        ) : (
-                          <p className="mt-1 text-xs leading-5 text-blue-100/70">
-                            无论来自 AI、Iconfont、IconPark 还是 SVG，都会先过这一层再进入画布。
-                          </p>
-                        )}
+                  <div className="inspector-compact-status rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-semibold text-white/82">已套团队规范</h3>
+                        <p className="mt-1 truncate text-xs text-white/36">
+                          {activeOutputProfile.masterSize}×{activeOutputProfile.masterSize} · {activeOutputProfile.strokeWidth}px · {activeOutputProfile.color} · native nodes
+                        </p>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <Badge tone={specWarnings.length ? "amber" : "green"}>{specWarnings.length ? "有偏差" : "通过"}</Badge>
-                        <button
-                          type="button"
-                          onClick={() => setIsSpecCardCollapsed((current) => !current)}
-                          className="rounded border border-blue-500/25 bg-black/20 px-2 py-1 text-xs font-semibold text-blue-100 transition hover:border-blue-300 hover:bg-blue-500/15"
-                        >
-                          {isSpecCardCollapsed ? "展开" : "收起"}
-                        </button>
-                      </div>
+                      <Badge tone={inspectorWarnings.length ? "amber" : "green"}>{inspectorWarnings.length ? "待检查" : "已套用"}</Badge>
                     </div>
-                    {isSpecCardCollapsed ? null : (
-                      <>
-                        <div className="grid grid-cols-2 gap-2">
-                          {appliedSpecRules.map((rule) => (
-                            <div key={rule} className="rounded border border-blue-500/20 bg-black/20 px-2 py-1.5 text-xs text-blue-50">
-                              {rule}
-                            </div>
-                          ))}
-                        </div>
-                        {specWarnings.length ? (
-                          <div className="mt-2 rounded border border-amber-500/20 bg-amber-500/10 px-2 py-1.5 text-xs leading-5 text-amber-100">
-                            {specWarnings[0]}
-                          </div>
-                        ) : null}
-                      </>
-                    )}
+                    {inspectorWarnings.length ? <p className="mt-2 truncate text-xs text-amber-200/80">{inspectorWarnings[0]}</p> : null}
                   </div>
                   {selectedInstance ? (
                     <>
-                      <div className="rounded border border-zinc-700 bg-[#18181b] p-3">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/50">
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="text-xs text-zinc-500">当前画布图标</div>
+                            <div className="text-xs text-white/42">当前画布图标</div>
                             <input
                               value={selectedInstance.name}
                               onChange={(event) => updateSelectedInstance({ name: event.target.value })}
-                              className="mt-1 w-full rounded border border-transparent bg-transparent px-0 py-0.5 text-sm font-semibold text-zinc-100 outline-none transition focus:border-zinc-700 focus:bg-black/30 focus:px-2"
+                              className="mt-1 w-full rounded border border-transparent bg-transparent px-0 py-0.5 text-sm font-semibold text-white/86 outline-none transition focus:border-slate-200 focus:bg-slate-50 focus:px-2"
                             />
-                            <div className="mt-1 text-xs text-zinc-500">
+                            <div className="mt-1 text-xs text-white/42">
                               {sourceLabel(selectedInstance.sourceName)} · {instanceSourceModeLabel(selectedInstance)} ·{" "}
                               {Math.round(selectedInstance.scale * 100)}%
                             </div>
@@ -7798,7 +9079,7 @@ export function IconWorkbench() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="grid grid-cols-2 gap-2 text-sm inspector-core-controls">
                         <NumberSlider
                           label="画布 X"
                           value={selectedInstance.x}
@@ -7846,23 +9127,20 @@ export function IconWorkbench() {
                       {selectedInstanceUsesSvgPreview ? (
                         <ColorPickerField
                           label="预览颜色"
-                          value={selectedInstance.previewColor ?? defaultTeamIconColor}
+                          value={selectedInstance.previewColor ?? activeOutputProfile.color}
                           onChange={(nextValue) => updateSelectedInstance({ previewColor: nextValue })}
                           helperText={
-                            (selectedInstance.previewColor ?? defaultTeamIconColor) === defaultTeamIconColor
-                              ? "当前使用 icon-gen-promax 团队默认色。"
-                              : "注意：生产交付仍建议恢复 #0F1218，避免偏离团队规范。"
+                            (selectedInstance.previewColor ?? activeOutputProfile.color) === activeOutputProfile.color
+                              ? `当前使用 ${selectedTeamSpecLibrary.skillName} 团队默认色。`
+                              : `注意：生产交付仍建议恢复 ${activeOutputProfile.color}，避免偏离团队规范。`
                           }
                         />
                       ) : null}
 
                       {selectedInstance.sourcePreviewSvg ? (
-                        <div className="rounded border border-zinc-700 bg-[#18181b] p-3">
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <div>
-                              <div className="text-xs text-zinc-500">来源图标参考</div>
-                              <div className="mt-1 text-sm font-semibold text-zinc-100">{instanceSourceModeLabel(selectedInstance)}</div>
-                            </div>
+                        <details className="inspector-details rounded-2xl border border-white/10 bg-white/[0.025] p-3">
+                          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-semibold text-white/76">
+                            <span>来源参考</span>
                             <Badge tone={instanceSourceModeTone(selectedInstance)}>
                               {selectedInstance.sourceConversionStatus === "team_normalized"
                                 ? "已套规范"
@@ -7870,30 +9148,27 @@ export function IconWorkbench() {
                                   ? "需确认"
                                   : "仅作对照"}
                             </Badge>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-zinc-700 bg-white p-3 text-[#0F1218] [&_svg]:h-full [&_svg]:w-full">
+                          </summary>
+                          <div className="mt-3 flex items-center gap-3">
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white p-3 text-[#0F1218] [&_svg]:h-full [&_svg]:w-full">
                               <div dangerouslySetInnerHTML={{ __html: selectedInstance.sourcePreviewSvg }} />
                             </div>
-                            <p className="text-xs leading-5 text-zinc-400">
-                              {selectedInstance.reviewNote ||
-                                "右侧是来源 SVG 对照；中间画布会尽量保留来源形态，并统一套用 icon-gen-promax 团队规范。"}
+                            <p className="text-xs leading-5 text-white/42">
+                              {selectedInstance.reviewNote || `保留来源形态，并统一套用 ${selectedTeamSpecLibrary.name}。`}
                             </p>
                           </div>
-                        </div>
+                        </details>
                       ) : null}
 
                       {selectedInstanceElement &&
                       !selectedInstanceUsesSvgPreview &&
-                      selectedInstance.sourceConversionStatus !== "team_normalized" &&
-                      selectedInstance.sourceConversionStatus !== "needs_review" ? (
+                      selectedInstance.sourceConversionStatus !== "reference_only" ? (
                         <>
-                          <div className="rounded border border-zinc-700 bg-[#18181b] p-3">
-                            <div className="text-xs text-zinc-500">实例内部图层</div>
-                            <div className="mt-1 text-sm font-semibold text-zinc-100">{selectedInstanceElement.name}</div>
-                            <div className="mt-1 text-xs text-zinc-500">{selectedInstanceElement.type}</div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
+                          <details className="inspector-details rounded-2xl border border-white/10 bg-white/[0.025] p-3">
+                            <summary className="cursor-pointer list-none text-sm font-semibold text-white/76">高级：内部图层</summary>
+                            <div className="mt-2 text-xs text-white/42">{selectedInstanceElement.name} · {selectedInstanceElement.type}</div>
+                          </details>
+                          <div className="grid grid-cols-2 gap-2 text-sm inspector-advanced-controls">
                             {([
                               ["形态 X", selectedInstanceElement.x, instanceElementBounds?.x[0] ?? 0, instanceElementBounds?.x[1] ?? 24, "x"],
                               ["宽度", selectedInstanceElement.width, instanceElementBounds?.width[0] ?? 0, instanceElementBounds?.width[1] ?? 24, "width"],
@@ -7927,7 +9202,7 @@ export function IconWorkbench() {
                               min={instanceElementBounds?.radius[0] ?? 0}
                               max={instanceElementBounds?.radius[1] ?? 4}
                               step={0.5}
-                              disabled={selectedInstanceElement.locked || selectedInstanceElement.type !== "path"}
+                              disabled={selectedInstanceElement.locked || (selectedInstanceElement.type !== "path" && selectedInstanceElement.type !== "rect")}
                               onChange={(nextValue) => updateSelectedInstanceElement({ radius: nextValue })}
                             />
                           </div>
@@ -7951,22 +9226,38 @@ export function IconWorkbench() {
                             }
                           />
                         </>
-                      ) : selectedInstance.sourceConversionStatus === "team_normalized" || selectedInstance.sourceConversionStatus === "needs_review" ? (
-                        <div className="rounded border border-blue-500/20 bg-blue-500/10 p-3 text-xs leading-5 text-blue-100">
-                          该图标来自来源库，画布会保留来源形态并套用 icon-gen-promax 团队规范。内部 path 暂时锁定，避免拉伸破坏 24px 负空间、2px 线宽和圆角端点；当前可调位置、缩放和命名。
-                        </div>
+                      ) : selectedInstance.sourceConversionStatus === "reference_only" ? (
+                        <details className="inspector-details rounded-2xl border border-white/10 bg-white/[0.025] p-3 text-xs leading-5 text-white/46">
+                          <summary className="cursor-pointer list-none text-sm font-semibold text-white/72">高级说明</summary>
+                          <p className="mt-2">来源库图标已保留原始形态并套用团队规范。详细路径编辑放在“列表/交付”中处理。</p>
+                        </details>
                       ) : (
-                        <div className="rounded border border-amber-500/20 bg-amber-500/10 p-3 text-xs leading-5 text-amber-100">
-                          这个图标还不是可生产 native 图形。当前可调整位置、缩放、留白和预览线宽；如果要写入 Figma，需要先转成 Icon Spec native nodes。
+                        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-3 text-xs leading-5 text-amber-100/80">
+                          该图标还需转成可交付 native nodes，当前先调整位置、缩放和留白。
                         </div>
                       )}
                     </>
+                  ) : !showPreview ? (
+                    <div className="iconops-workbench-empty flex min-h-[420px] items-center justify-center rounded-[26px] border border-dashed border-white/10 bg-white/[0.055]/62 p-6 text-center">
+                      <div>
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-2xl text-slate-300 shadow-sm shadow-slate-200/70">
+                          ⌁
+                        </div>
+                        <h3 className="text-sm font-semibold text-white/86">选中图标后编辑</h3>
+                        <p className="mt-2 text-xs leading-5 text-white/42">
+                          位置、缩放、颜色、质量检查和 Figma 交付会在这里出现。
+                        </p>
+                        <div className="mt-4 inline-flex rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-white/42">
+                          24×24 · 2px · #0F1218
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     <>
-                      <div className="rounded border border-zinc-700 bg-[#18181b] p-3">
-                        <div className="text-xs text-zinc-500">AI 预览模板层</div>
-                        <div className="mt-1 text-sm font-semibold text-zinc-100">{selectedElement.name}</div>
-                        <div className="mt-1 text-xs text-zinc-500">{selectedElement.type}</div>
+                      <div className="rounded border border-slate-200 bg-white p-3">
+                        <div className="text-xs text-white/42">AI 预览模板层</div>
+                        <div className="mt-1 text-sm font-semibold text-white/86">{selectedElement.name}</div>
+                        <div className="mt-1 text-xs text-white/42">{selectedElement.type}</div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         {([
@@ -8011,7 +9302,7 @@ export function IconWorkbench() {
                             min={propertyBounds.radius[0]}
                             max={propertyBounds.radius[1]}
                             step={0.5}
-                            disabled={selectedElement.locked || selectedElement.type !== "path"}
+                            disabled={selectedElement.locked || (selectedElement.type !== "path" && selectedElement.type !== "rect")}
                             onChange={(nextValue) => updateSelectedElement({ radius: nextValue })}
                           />
                         </div>
@@ -8028,19 +9319,19 @@ export function IconWorkbench() {
                       <div className="flex gap-2">
                         <button
                           onClick={resetCanvasElements}
-                          className="flex-1 rounded border border-zinc-700 bg-[#18181b] px-3 py-2 text-sm text-zinc-200 transition hover:border-zinc-500"
+                          className="flex-1 rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 transition hover:border-slate-300"
                         >
                           重置模板
                         </button>
                         <button
                           onClick={applyProMaxDefaults}
                           disabled={selectedElement.locked}
-                          className="flex-1 rounded bg-blue-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+                          className="flex-1 rounded bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/28"
                         >
                           恢复团队默认
                         </button>
                       </div>
-                      <div className="rounded border border-zinc-700 bg-[#18181b] p-3 text-xs leading-5 text-zinc-500">
+                      <div className="rounded border border-slate-200 bg-white p-3 text-xs leading-5 text-white/42">
                         这里调整的是 AI 预览模板。把预览放入画布后，再选中画布图标即可调整真实实例。
                       </div>
                     </>
@@ -8051,22 +9342,22 @@ export function IconWorkbench() {
               {activeTab === "layers" ? (
                 <div className="space-y-3">
                   {batchTasks.length ? (
-                    <div className="rounded border border-blue-500/20 bg-blue-500/10 p-3">
+                    <div className="rounded border border-blue-500/20 bg-indigo-500/10 p-3">
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <div>
-                          <h3 className="text-base font-semibold text-blue-100">从资料中识别到的图标</h3>
-                          <p className="mt-1 text-xs text-blue-100/70">确认后可以一键放进画布。</p>
+                          <h3 className="text-base font-semibold text-blue-700">从资料中识别到的图标</h3>
+                          <p className="mt-1 text-xs text-blue-700/70">确认后可以一键放进画布。</p>
                         </div>
                         <Badge tone="blue">{batchTasks.length}</Badge>
                       </div>
                       <div className="max-h-44 space-y-2 overflow-auto pr-1">
                         {batchTasks.map((task) => (
-                          <div key={task.id} className="rounded border border-blue-500/20 bg-black/20 p-2">
+                          <div key={task.id} className="rounded border border-blue-500/20 bg-slate-50 p-2">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="truncate text-xs font-semibold text-zinc-100">{task.name}</span>
+                              <span className="truncate text-xs font-semibold text-white/86">{task.name}</span>
                               <Badge tone={task.status === "queued" ? "green" : "amber"}>{taskStatusLabel(task.status)}</Badge>
                             </div>
-                            <div className="mt-1 text-xs text-zinc-500">
+                            <div className="mt-1 text-xs text-white/42">
                               {batchInputKindLabel(task.sourceKind)} · {task.candidateCount} 个参考 · 匹配 {task.bestScore || "-"}
                             </div>
                           </div>
@@ -8075,11 +9366,11 @@ export function IconWorkbench() {
                     </div>
                   ) : null}
 
-                  <div className="rounded border border-zinc-700 bg-[#18181b] p-3">
+                  <div className="rounded border border-slate-200 bg-white p-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <div>
-                        <h3 className="text-base font-semibold text-zinc-200">画布图层</h3>
-                        <p className="mt-1 text-xs text-zinc-500">按用途拆多个画布；当前只编辑选中的画布层。</p>
+                        <h3 className="text-base font-semibold text-slate-800">画布图层</h3>
+                        <p className="mt-1 text-xs text-white/42">按用途拆多个画布；当前只编辑选中的画布层。</p>
                       </div>
                       <Badge tone={totalCanvasInstanceCount ? "blue" : "neutral"}>{totalCanvasInstanceCount} 个</Badge>
                     </div>
@@ -8091,13 +9382,13 @@ export function IconWorkbench() {
                           onClick={() => switchCanvasLayer(layer.id)}
                           className={`w-full rounded border px-3 py-2 text-left transition ${
                             layer.id === activeCanvasLayerId
-                              ? "border-blue-400 bg-blue-500/10"
-                              : "border-zinc-800 bg-black/30 hover:border-zinc-500"
+                              ? "border-blue-400 bg-indigo-500/10"
+                              : "border-white/10 bg-white/[0.055] hover:border-slate-300"
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-xs font-semibold text-zinc-100">{layer.name}</span>
-                            <span className="text-xs text-zinc-500">{layer.instances.length} 个</span>
+                            <span className="truncate text-xs font-semibold text-white/86">{layer.name}</span>
+                            <span className="text-xs text-white/42">{layer.instances.length} 个</span>
                           </div>
                         </button>
                       ))}
@@ -8105,33 +9396,33 @@ export function IconWorkbench() {
                     <div className="mb-3 grid grid-cols-2 gap-2">
                       <button
                         onClick={createCanvasLayer}
-                        className="rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:border-blue-400"
+                        className="rounded border border-white/10 bg-white/[0.055] px-3 py-2 text-xs font-semibold text-white/86 transition hover:border-blue-400"
                       >
                         新增画布
                       </button>
                       <button
                         onClick={clearActiveCanvasLayer}
                         disabled={!canvasInstances.length}
-                        className="rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:border-amber-400 disabled:cursor-not-allowed disabled:text-zinc-600"
+                        className="rounded border border-white/10 bg-white/[0.055] px-3 py-2 text-xs font-semibold text-white/86 transition hover:border-amber-400 disabled:cursor-not-allowed disabled:text-white/32"
                       >
                         清空当前
                       </button>
                     </div>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold text-zinc-200">当前画布图标</h3>
+                      <h3 className="text-sm font-semibold text-slate-800">当前画布图标</h3>
                       <Badge tone={canvasInstances.length ? "blue" : "neutral"}>{canvasInstances.length} 个</Badge>
                     </div>
                     <button
                       onClick={downloadBatchManifest}
                       disabled={!canvasInstances.length}
-                      className="mb-3 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs font-semibold text-zinc-100 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:text-zinc-600"
+                      className="mb-3 w-full rounded border border-white/10 bg-white/[0.055] px-3 py-2 text-xs font-semibold text-white/86 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:text-white/32"
                     >
                       导出图标清单
                     </button>
                     <button
                       onClick={focusAllCanvasInstances}
                       disabled={!canvasInstances.length}
-                      className="mb-3 w-full rounded border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-100 transition hover:border-blue-300 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-950 disabled:text-zinc-600"
+                      className="mb-3 w-full rounded border border-blue-500/30 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:border-blue-300 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-white/32"
                     >
                       定位全部图标
                     </button>
@@ -8142,30 +9433,30 @@ export function IconWorkbench() {
                             key={instance.id}
                             className={`w-full rounded border p-3 text-left transition ${
                               selectedInstanceId === instance.id
-                                ? "border-blue-400 bg-blue-500/10"
-                              : "border-zinc-800 bg-black/30 hover:border-zinc-500"
+                                ? "border-blue-400 bg-indigo-500/10"
+                              : "border-white/10 bg-white/[0.055] hover:border-slate-300"
                             }`}
                           >
                             <button type="button" onClick={() => selectAndFocusCanvasInstance(instance)} className="w-full text-left">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="truncate text-xs font-semibold text-zinc-100">{instance.name}</span>
-                                <Badge tone="amber">待确认</Badge>
+                                <span className="truncate text-xs font-semibold text-white/86">{instance.name}</span>
+                                <Badge tone={canvasInstanceQualityState(instance, activeOutputProfile).tone}>{canvasInstanceQualityState(instance, activeOutputProfile).label}</Badge>
                               </div>
-                              <div className="mt-1 truncate text-xs text-zinc-500">
+                              <div className="mt-1 truncate text-xs text-white/42">
                                 {sourceLabel(instance.sourceName)} · 画法 {instance.optionId ?? "A"} · {Math.round(instance.scale * 100)}%
                               </div>
                             </button>
                             <button
                               type="button"
                               onClick={() => selectAndFocusCanvasInstance(instance)}
-                              className="mt-2 mr-2 rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-400 transition hover:border-blue-400 hover:text-blue-100"
+                              className="mt-2 mr-2 rounded border border-slate-200 px-2 py-1 text-xs text-white/42 transition hover:border-blue-400 hover:text-blue-700"
                             >
                               定位
                             </button>
                             <button
                               type="button"
                               onClick={() => deleteCanvasInstance(instance.id)}
-                              className="mt-2 rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-400 transition hover:border-red-400 hover:text-red-100"
+                              className="mt-2 rounded border border-slate-200 px-2 py-1 text-xs text-white/42 transition hover:border-red-400 hover:text-red-700"
                             >
                               删除
                             </button>
@@ -8173,7 +9464,7 @@ export function IconWorkbench() {
                         ))}
                       </div>
                     ) : (
-                      <p className="rounded border border-dashed border-zinc-700 p-3 text-xs leading-5 text-zinc-500">
+                      <p className="rounded border border-dashed border-slate-200 p-3 text-xs leading-5 text-white/42">
                         画布还是空的。可以先说一个需求，或切到批量模式粘贴清单。
                       </p>
                     )}
@@ -8184,8 +9475,8 @@ export function IconWorkbench() {
                       key={element.id}
                       className={`rounded border p-3 transition ${
                         selectedElementId === element.id
-                          ? "border-blue-400 bg-blue-500/10"
-                          : "border-zinc-700 bg-[#18181b] hover:border-zinc-500"
+                          ? "border-blue-400 bg-indigo-500/10"
+                          : "border-slate-200 bg-white hover:border-slate-300"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -8196,9 +9487,9 @@ export function IconWorkbench() {
                           }}
                           className="min-w-0 flex-1 text-left"
                         >
-                          <div className="truncate text-sm font-medium text-zinc-100">{element.name}</div>
-                          <div className="mt-1 text-xs text-zinc-500">
-                            {element.type === "path" ? "主体轮廓" : element.type === "line" ? "动作标记" : "状态点"} · {element.width}×{element.height} · {element.visible === false ? "已隐藏" : "显示中"}
+                          <div className="truncate text-sm font-medium text-white/86">{element.name}</div>
+                          <div className="mt-1 text-xs text-white/42">
+                            {element.type === "rect" ? "原生矩形" : element.type === "path" ? "矢量路径" : element.type === "line" ? "原生直线" : "原生圆形"} · {element.width}×{element.height} · {element.visible === false ? "已隐藏" : "显示中"}
                           </div>
                         </button>
                         <div className="flex shrink-0 items-center gap-2">
@@ -8206,7 +9497,7 @@ export function IconWorkbench() {
                           <button
                             onClick={() => toggleElementVisibility(element.id)}
                             disabled={element.locked}
-                            className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:text-zinc-600"
+                            className="rounded border border-slate-200 px-2 py-1 text-xs text-white/70 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:text-white/32"
                           >
                             {element.visible === false ? "显示" : "隐藏"}
                           </button>
@@ -8219,14 +9510,14 @@ export function IconWorkbench() {
 
               {activeTab === "spec" ? (
                 <div className="space-y-3">
-                  <div className="rounded border border-zinc-700 bg-[#18181b] p-3">
+                  <div className="rounded border border-slate-200 bg-white p-3">
                     <div className="mb-2 flex items-center justify-between">
-                      <h3 className="text-base font-semibold text-zinc-200">交付说明（JSON）</h3>
+                      <h3 className="text-base font-semibold text-slate-800">交付说明（JSON）</h3>
                       <Badge tone={canGenerateFigmaPayload ? "green" : "amber"}>
                         {canGenerateFigmaPayload ? "可生成" : "待确认"}
                       </Badge>
                     </div>
-                    <div className="mb-3 rounded border border-zinc-800 bg-black/40 p-3 text-xs leading-5 text-zinc-400">
+                    <div className="mb-3 rounded border border-white/10 bg-white/[0.055] p-3 text-xs leading-5 text-white/42">
                       <div className="mb-2 flex items-center justify-between">
                         <span>交付前确认</span>
                         <Badge tone={approvedPreview ? "green" : "amber"}>{approvedPreview ? "已确认" : "等你确认"}</Badge>
@@ -8234,58 +9525,58 @@ export function IconWorkbench() {
                       {drawBlockedReasons.length ? (
                         <div className="space-y-1">
                           {drawBlockedReasons.map((reason) => (
-                            <p key={reason} className="text-amber-100">• {reason}</p>
+                            <p key={reason} className="text-amber-700">• {reason}</p>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-emerald-100">当前图标已满足交付条件，可以准备写入 Figma；写入后还需要截图检查。</p>
+                        <p className="text-emerald-700">当前图标已满足交付条件，可以准备写入 Figma；写入后还需要截图检查。</p>
                       )}
                     </div>
                     <button
                       onClick={() => approveCurrentPreview()}
                       disabled={!showPreview || !selectedOption || approvedPreview || Boolean(specWarnings.length)}
-                      className="mb-3 w-full rounded bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+                      className="mb-3 w-full rounded bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/28"
                     >
                       {approvedPreview ? "当前预览已确认" : specWarnings.length ? "预览质量未通过，暂不能交付" : "确认这个样子，准备交付"}
                     </button>
-                    <pre className="max-h-80 overflow-auto rounded border border-zinc-800 bg-black p-3 text-xs leading-5 text-zinc-300">
+                    <pre className="max-h-80 overflow-auto rounded border border-slate-200 bg-white p-3 text-xs leading-5 text-white/70">
                       {JSON.stringify(iconSpecContract, null, 2)}
                     </pre>
                   </div>
-	                  <div className="rounded border border-zinc-700 bg-[#18181b] p-3">
+	                  <div className="rounded border border-slate-200 bg-white p-3">
 	                    <div className="mb-2 flex items-center justify-between">
-	                      <h3 className="text-base font-semibold text-zinc-200">批量写入 Figma</h3>
+	                      <h3 className="text-base font-semibold text-slate-800">批量写入 Figma</h3>
 	                      <Badge tone={productionStatus === "ready" ? "green" : productionStatus === "blocked" ? "amber" : productionStatus === "failed" ? "red" : canGenerateFigmaPayload ? "blue" : "neutral"}>
 	                        {batchFigmaWriteStatus === "idle" ? `${totalCanvasInstanceCount} 个` : runStatusLabel(batchFigmaWriteStatus)}
 	                      </Badge>
 	                    </div>
-		                    <p className="mb-3 text-xs leading-5 text-zinc-500">
+		                    <p className="mb-3 text-xs leading-5 text-white/42">
 		                      目标链接和 Token 已前置到顶部“Figma 输出设置”。这里仅查看 JSON 规格、执行器和门禁结果，避免写入入口藏在交付页。
 		                    </p>
-		                    <div className="mb-3 rounded border border-zinc-800 bg-black/30 p-3 text-xs leading-5 text-zinc-400">
+		                    <div className="mb-3 rounded border border-white/10 bg-white/[0.055] p-3 text-xs leading-5 text-white/42">
 		                      <div className="flex items-center justify-between gap-2">
 		                        <span>{figmaTargetUrl.trim() ? "已填写目标 Figma" : "顶部还没填写目标 Figma"}</span>
 		                        <Badge tone={batchFigmaWriteStatus === "ready" ? "green" : batchFigmaWriteStatus === "failed" ? "red" : batchFigmaWriteStatus === "blocked" ? "amber" : "blue"}>
 		                          {batchFigmaWriteStatus === "idle" ? `${totalCanvasInstanceCount} 个待写入` : runStatusLabel(batchFigmaWriteStatus)}
 		                        </Badge>
 		                      </div>
-		                      <p className="mt-1 text-zinc-600">真实边界：Figma REST Token 只校验权限；最终仍由 Figma 插件/Connector 按 JSON 创建 native nodes。</p>
+		                      <p className="mt-1 text-white/32">真实边界：Figma REST Token 只校验权限；最终仍由 Figma 插件/Connector 按 JSON 创建 native nodes。</p>
 		                    </div>
 	                    {batchFigmaWriteMessage ? (
-	                      <p className="mb-3 rounded border border-zinc-800 bg-black/40 px-3 py-2 text-xs leading-5 text-zinc-300">
+	                      <p className="mb-3 rounded border border-white/10 bg-white/[0.055] px-3 py-2 text-xs leading-5 text-white/70">
 	                        {batchFigmaWriteMessage}
 	                      </p>
 	                    ) : null}
 	                    {batchFigmaWriteRun ? (
 	                      <div className="mb-3 space-y-2">
 	                        {batchFigmaWriteRun.target ? (
-	                          <div className="rounded border border-zinc-800 bg-black/30 p-2 text-xs leading-5 text-zinc-400">
-	                            <div className="font-semibold text-zinc-200">{batchFigmaWriteRun.target.fileName ?? "Figma 目标"}</div>
+	                          <div className="rounded border border-white/10 bg-white/[0.055] p-2 text-xs leading-5 text-white/42">
+	                            <div className="font-semibold text-slate-800">{batchFigmaWriteRun.target.fileName ?? "Figma 目标"}</div>
 	                            <div className="mt-1 break-all font-mono">{batchFigmaWriteRun.target.fileKey} · {batchFigmaWriteRun.target.nodeId}</div>
 	                          </div>
 	                        ) : null}
 	                        {batchFigmaWriteRun.warnings.map((warning) => (
-	                          <p key={warning} className="rounded border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-100">
+	                          <p key={warning} className="rounded border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-700">
 	                            {warning}
 	                          </p>
 	                        ))}
@@ -8293,31 +9584,31 @@ export function IconWorkbench() {
 	                    ) : null}
 		                    <div className="mb-4 grid gap-2">
 		                      <label className="block">
-		                        <span className="mb-1 block text-xs font-semibold text-zinc-400">icon-spec-batch.json</span>
+		                        <span className="mb-1 block text-xs font-semibold text-white/42">icon-spec-batch.json</span>
 		                        <textarea
 		                          readOnly
 		                          value={
 		                            batchFigmaWriteRun?.figma.jsonSpec ||
 		                            "生成后这里会出现 JSON 规格：包含每个 icon 的 meta / shapes / strokes / position，Figma 端按它创建可编辑 native 图层。"
 		                          }
-		                          className="h-40 w-full resize-none rounded border border-zinc-800 bg-black p-3 font-mono text-xs leading-5 text-zinc-300 outline-none"
+		                          className="h-40 w-full resize-none rounded border border-slate-200 bg-white p-3 font-mono text-xs leading-5 text-white/70 outline-none"
 		                        />
 		                      </label>
 		                      <label className="block">
-		                        <span className="mb-1 block text-xs font-semibold text-zinc-400">figma-json-draw-runner.js</span>
+		                        <span className="mb-1 block text-xs font-semibold text-white/42">figma-json-draw-runner.js</span>
 		                        <textarea
 		                          readOnly
 		                          value={
 		                            batchFigmaWriteRun?.figma.script ||
 		                            "执行器脚本只负责读取 JSON 并调用 Figma Plugin API 画 native nodes；不是 SVG 导入。"
 		                          }
-		                          className="h-32 w-full resize-none rounded border border-zinc-800 bg-black p-3 font-mono text-xs leading-5 text-zinc-300 outline-none"
+		                          className="h-32 w-full resize-none rounded border border-slate-200 bg-white p-3 font-mono text-xs leading-5 text-white/70 outline-none"
 		                        />
 		                      </label>
 		                    </div>
-	                    <div className="my-3 border-t border-zinc-800" />
+	                    <div className="my-3 border-t border-slate-200" />
 	                    <div className="mb-2 flex items-center justify-between">
-	                      <h4 className="text-sm font-semibold text-zinc-300">单个预览写入任务</h4>
+	                      <h4 className="text-sm font-semibold text-white/70">单个预览写入任务</h4>
 	                      <Badge tone={productionStatus === "ready" ? "green" : productionStatus === "blocked" ? "amber" : productionStatus === "failed" ? "red" : canGenerateFigmaPayload ? "blue" : "neutral"}>
 	                        {productionStatus === "idle" && canGenerateFigmaPayload ? "可准备" : runStatusLabel(productionStatus)}
 	                      </Badge>
@@ -8325,31 +9616,31 @@ export function IconWorkbench() {
 	                    <button
 	                      onClick={() => void prepareProductionRun()}
 	                      disabled={!canGenerateFigmaPayload || productionStatus === "building"}
-                      className="mb-2 w-full rounded bg-violet-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+                      className="mb-2 w-full rounded bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/28"
                     >
                       {productionStatus === "building" ? "正在准备写入任务" : "准备写入 Figma"}
                     </button>
                     <button
                       onClick={copyFigmaNativeScript}
                       disabled={!canGenerateFigmaPayload}
-                      className="mb-3 w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm font-semibold text-zinc-100 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:text-zinc-600"
+                      className="mb-3 w-full rounded border border-white/10 bg-white/[0.055] px-3 py-2 text-sm font-semibold text-white/86 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:text-white/32"
                     >
                       {copyStatus === "copied" ? "已复制写入脚本" : copyStatus === "failed" ? "复制失败，请手动选择" : "复制写入脚本"}
                     </button>
                     {productionMessage ? (
-                      <p className="mb-3 rounded border border-zinc-800 bg-black/40 px-3 py-2 text-xs leading-5 text-zinc-300">
+                      <p className="mb-3 rounded border border-white/10 bg-white/[0.055] px-3 py-2 text-xs leading-5 text-white/70">
                         {productionMessage}
                       </p>
                     ) : null}
                     {productionRun ? (
                       <div className="mb-3 space-y-2">
                         {productionRun.gates.map((gate) => (
-                          <div key={gate.id} className="rounded border border-zinc-800 bg-black/30 p-2 text-xs leading-5">
+                          <div key={gate.id} className="rounded border border-white/10 bg-white/[0.055] p-2 text-xs leading-5">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="font-semibold text-zinc-200">{gate.label}</span>
+                              <span className="font-semibold text-slate-800">{gate.label}</span>
                               <Badge tone={gate.status === "done" ? "green" : gate.status === "blocked" ? "red" : "amber"}>{gateStatusLabel(gate.status)}</Badge>
                             </div>
-                            <p className="mt-1 text-zinc-500">{gate.detail}</p>
+                            <p className="mt-1 text-white/42">{gate.detail}</p>
                           </div>
                         ))}
                       </div>
@@ -8360,62 +9651,62 @@ export function IconWorkbench() {
 	                        productionRun?.figma.script ||
 	                        (canGenerateFigmaPayload ? figmaNativeScript : "Preview 未批准或交付未通过前，不生成 Figma native draw payload。")
 	                      }
-	                      className="h-40 w-full resize-none rounded border border-zinc-800 bg-black p-3 font-mono text-xs leading-5 text-zinc-300 outline-none"
+	                      className="h-40 w-full resize-none rounded border border-slate-200 bg-white p-3 font-mono text-xs leading-5 text-white/70 outline-none"
 	                    />
 	                  </div>
-                  <div className="rounded border border-zinc-700 bg-[#18181b] p-3">
+                  <div className="rounded border border-slate-200 bg-white p-3">
                     <div className="mb-2 flex items-center justify-between">
-                      <h3 className="text-base font-semibold text-zinc-200">交付文件</h3>
+                      <h3 className="text-base font-semibold text-slate-800">交付文件</h3>
                       <Badge tone={deliveryStatus === "ready" ? "green" : deliveryStatus === "blocked" ? "amber" : deliveryStatus === "failed" ? "red" : "neutral"}>
                         {runStatusLabel(deliveryStatus)}
                       </Badge>
                     </div>
-                    <p className="mb-3 text-xs leading-5 text-zinc-500">
+                    <p className="mb-3 text-xs leading-5 text-white/42">
                       生成可下载的交付文件，包含图标说明、预览、React 组件和 Figma 写入脚本。
                     </p>
                     <button
                       onClick={() => void generateDeliveryPackage()}
                       disabled={!canGenerateFigmaPayload || deliveryStatus === "building"}
-                      className="mb-3 w-full rounded bg-blue-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+                      className="mb-3 w-full rounded bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/28"
                     >
                       {deliveryStatus === "building" ? "正在准备交付包" : "生成交付文件"}
                     </button>
                     {deliveryMessage ? (
-                      <p className="mb-3 rounded border border-zinc-800 bg-black/40 px-3 py-2 text-xs leading-5 text-zinc-300">
+                      <p className="mb-3 rounded border border-white/10 bg-white/[0.055] px-3 py-2 text-xs leading-5 text-white/70">
                         {deliveryMessage}
                       </p>
                     ) : null}
                     {deliveryPackage ? (
                       <div className="space-y-2">
                         {deliveryPackage.persisted ? (
-                          <div className="rounded border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs leading-5 text-emerald-100">
+                          <div className="rounded border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs leading-5 text-emerald-700">
                             <div className="font-semibold">已写入本地目录</div>
                             <div className="mt-1 break-all font-mono text-emerald-50">{deliveryPackage.persisted.directory}</div>
                           </div>
                         ) : null}
                         {deliveryPackage.files.map((file) => (
-                          <div key={file.path} className="rounded border border-zinc-800 bg-black/40 p-3">
+                          <div key={file.path} className="rounded border border-white/10 bg-white/[0.055] p-3">
                             <div className="mb-2 flex items-center justify-between gap-2">
                               <div className="min-w-0">
-                                <div className="truncate text-xs font-semibold text-zinc-100">{file.path}</div>
-                                <div className="mt-1 text-xs text-zinc-600">{file.language} · {file.content.length} chars</div>
+                                <div className="truncate text-xs font-semibold text-white/86">{file.path}</div>
+                                <div className="mt-1 text-xs text-white/32">{file.language} · {file.content.length} chars</div>
                               </div>
                               <div className="flex shrink-0 gap-1">
                                 <button
                                   onClick={() => void copyDeliveryFile(file.content)}
-                                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-zinc-500"
+                                  className="rounded border border-slate-200 px-2 py-1 text-xs text-white/70 transition hover:border-slate-300"
                                 >
                                   复制
                                 </button>
                                 <button
                                   onClick={() => downloadDeliveryFile(file.path, file.content)}
-                                  className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 transition hover:border-zinc-500"
+                                  className="rounded border border-slate-200 px-2 py-1 text-xs text-white/70 transition hover:border-slate-300"
                                 >
                                   下载
                                 </button>
                               </div>
                             </div>
-                            <pre className="max-h-28 overflow-auto rounded bg-black p-2 text-xs leading-5 text-zinc-500">
+                            <pre className="max-h-28 overflow-auto rounded bg-white p-2 text-xs leading-5 text-white/42">
                               {file.content}
                             </pre>
                           </div>
@@ -8428,38 +9719,154 @@ export function IconWorkbench() {
 
               {activeTab === "quality" ? (
                 <div className="space-y-3">
-                  <div className="rounded border border-blue-500/20 bg-blue-500/10 p-3">
+                  <div className="rounded border border-amber-500/25 bg-amber-500/10 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-amber-800">当前图标质量门禁</h3>
+                        <p className="mt-1 text-xs leading-5 text-amber-800/70">
+                          逐条处理警告：可以编辑后复查，也可以对可接受的偏差留下人工批准记录。
+                        </p>
+                      </div>
+                      <Badge tone={selectedInstanceBlockers.length ? "red" : selectedInstancePendingQualityIssues.length ? "amber" : "green"}>
+                        {selectedInstance ? (selectedInstanceBlockers.length ? "硬阻断" : selectedInstancePendingQualityIssues.length ? "待处理" : "可写入") : "未选中"}
+                      </Badge>
+                    </div>
+                    {selectedInstance ? (
+                      <div className="mt-3 space-y-2">
+                        <div className="rounded border border-amber-500/20 bg-white/70 p-2 text-xs leading-5 text-amber-900/70">
+                          当前阶段：
+                          {selectedInstanceQualityIssues.length
+                            ? Array.from(new Set(selectedInstanceQualityIssues.map((issue) => qualityStageLabel(issue.stage)))).join("、")
+                            : "已通过团队规范和 Figma native 写入检查"}
+                        </div>
+                        {selectedInstanceQualityIssues.length ? (
+                          selectedInstanceQualityIssues.map((issue) => {
+                            const isApproved = issue.severity === "warning" && selectedInstanceApprovedIssueIds.has(issue.id);
+                            return (
+                              <div
+                                key={issue.id}
+                                className={`rounded border p-2 ${
+                                  issue.severity === "blocker"
+                                    ? "border-red-500/25 bg-red-500/10"
+                                    : isApproved
+                                      ? "border-emerald-500/20 bg-emerald-500/10"
+                                      : "border-amber-500/20 bg-white/70"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className="font-semibold text-slate-800">{issue.title}</span>
+                                      <Badge tone={issue.severity === "blocker" ? "red" : isApproved ? "green" : "amber"}>
+                                        {issue.severity === "blocker" ? "必须修复" : isApproved ? "人工已批准" : "可人工批准"}
+                                      </Badge>
+                                      <span className="text-[11px] text-slate-500">{qualityStageLabel(issue.stage)}</span>
+                                    </div>
+                                    <p className="mt-1 text-xs leading-5 text-slate-600">{issue.message}</p>
+                                  </div>
+                                  <div className="flex shrink-0 gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => focusQualityIssue(issue)}
+                                      className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-700"
+                                    >
+                                      {issue.actionLabel}
+                                    </button>
+                                    {issue.severity === "warning" ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => approveSelectedQualityIssue(issue.id)}
+                                        disabled={isApproved}
+                                        className="rounded bg-emerald-500 px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-200"
+                                      >
+                                        {isApproved ? "已批准" : "批准"}
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <p className="rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-2 text-xs leading-5 text-emerald-800">
+                            当前图标没有未处理质量问题，可以进入 Figma 写入。
+                          </p>
+                        )}
+                        {selectedInstancePendingQualityIssues.some((issue) => issue.severity === "warning") && !selectedInstanceBlockers.length ? (
+                          <button
+                            type="button"
+                            onClick={approveSelectedQualityWarnings}
+                            className="w-full rounded bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500"
+                          >
+                            批准当前图标的全部可接受警告
+                          </button>
+                        ) : null}
+                        {selectedInstanceBlockers.length ? (
+                          <p className="rounded border border-red-500/20 bg-red-500/10 px-2 py-2 text-xs leading-5 text-red-800">
+                            红色问题是硬阻断，不能通过人工批准绕过；请按每条问题右侧动作修复后重新检查。
+                          </p>
+                        ) : null}
+                        {selectedInstanceQualityIssues.some((issue) => issue.stage === "team-spec") ? (
+                          <button
+                            type="button"
+                            onClick={normalizeSelectedInstanceToTeamSpec}
+                            className="w-full rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 transition hover:border-indigo-400"
+                          >
+                            一键恢复团队线宽和颜色
+                          </button>
+                        ) : null}
+                        {selectedInstance.sourceConversionStatus !== "reference_only" && selectedInstance.elements.some((element) => element.locked && isDrawableElement(element)) ? (
+                          <button
+                            type="button"
+                            onClick={enableSelectedInstanceGeometryEditing}
+                            className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-700"
+                          >
+                            开启来源几何编辑
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <p className="mt-3 rounded border border-amber-500/20 bg-white/70 px-2 py-2 text-xs leading-5 text-amber-900/70">
+                        先点击画布中的图标，再在这里查看具体卡点和修复动作。
+                      </p>
+                    )}
+                  </div>
+                  <div className="rounded border border-blue-500/20 bg-indigo-500/10 p-3">
                     <div className="mb-3 flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-base font-semibold text-blue-100">人工审核</h3>
-                        <p className="mt-1 text-xs leading-5 text-blue-100/70">
+                        <h3 className="text-base font-semibold text-blue-700">人工审核</h3>
+                        <p className="mt-1 text-xs leading-5 text-blue-700/70">
                           人来判断语义是否准确、是否适合业务场景、是否允许进入团队资产库。
                         </p>
                       </div>
                       <Badge tone={manualReviewTone(selectedReviewStatus)}>{manualReviewLabel(selectedReviewStatus)}</Badge>
                     </div>
                     {selectedInstance ? (
-                      <div className="rounded border border-blue-500/20 bg-black/20 p-3">
+                      <div className="rounded border border-blue-500/20 bg-slate-50 p-3">
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-zinc-100">{selectedInstance.name}</div>
-                            <div className="mt-1 truncate text-xs text-zinc-500">
+                            <div className="truncate text-sm font-semibold text-white/86">{selectedInstance.name}</div>
+                            <div className="mt-1 truncate text-xs text-white/42">
                               {sourceLabel(selectedInstance.sourceName)} · 画法 {selectedInstance.optionId ?? "A"} · {Math.round(selectedInstance.scale * 100)}%
                             </div>
                           </div>
                           <Badge tone={manualReviewTone(selectedReviewStatus)}>{manualReviewLabel(selectedReviewStatus)}</Badge>
                         </div>
                         {selectedInstance.reviewNote ? (
-                          <p className="mt-2 rounded border border-zinc-800 bg-black/30 px-2 py-1.5 text-xs leading-5 text-zinc-400">
+                          <p className="mt-2 rounded border border-white/10 bg-white/[0.055] px-2 py-1.5 text-xs leading-5 text-white/42">
                             {selectedInstance.reviewNote}
                           </p>
                         ) : null}
                         <div className="mt-3 grid grid-cols-3 gap-2">
                           <button
-                            onClick={() => updateSelectedInstanceReview("approved", "设计师已确认语义和业务场景，可进入交付检查。")}
-                            className="rounded bg-emerald-500 px-2 py-2 text-xs font-semibold text-white transition hover:bg-emerald-400"
+                            onClick={() => {
+                              updateSelectedInstanceReview("approved", "设计师已确认语义和业务场景，可进入交付检查。");
+                              approveSelectedQualityWarnings();
+                            }}
+                            disabled={selectedInstanceBlockers.length > 0}
+                            className="rounded bg-emerald-500 px-2 py-2 text-xs font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-emerald-200"
                           >
-                            通过
+                            通过并批准警告
                           </button>
                           <button
                             onClick={() => updateSelectedInstanceReview("rejected", "人工打回：需要重新调整语义、比例或视觉细节。")}
@@ -8469,28 +9876,89 @@ export function IconWorkbench() {
                           </button>
                           <button
                             onClick={() => void approveSelectedInstanceIntoTeamLibrary()}
-                            disabled={Boolean(specWarnings.length) || selectedReviewStatus === "rejected"}
-                            className="rounded bg-blue-500 px-2 py-2 text-xs font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+                            disabled={selectedInstanceBlockers.length > 0 || selectedInstancePendingQualityIssues.some((issue) => issue.severity === "warning") || selectedReviewStatus === "rejected"}
+                            className="rounded bg-indigo-500 px-2 py-2 text-xs font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/28"
                           >
                             {teamLibraryTrainingStatus === "training" ? "入库中" : "入库"}
                           </button>
                         </div>
-                        {specWarnings.length ? (
-                          <p className="mt-2 text-xs leading-5 text-amber-100">仍有规范偏差，暂不建议入库。</p>
+                        {selectedInstancePendingQualityIssues.length ? (
+                          <p className="mt-2 text-xs leading-5 text-amber-700">仍有未处理质量问题，暂不建议入库。</p>
                         ) : null}
                       </div>
+                    ) : showPreview ? (
+                      <div className="rounded border border-blue-500/20 bg-slate-50 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <div className="text-sm font-semibold text-slate-800">当前 AI 预览质量</div>
+                            <p className="mt-1 text-xs leading-5 text-slate-500">先修复或批准可接受警告，再确认预览进入交付。</p>
+                          </div>
+                          <Badge tone={previewHasQualityIssues ? "red" : pendingPreviewQualityIssues.length ? "amber" : "green"}>
+                            {previewHasQualityIssues ? "硬阻断" : pendingPreviewQualityIssues.length ? "待处理" : "可确认"}
+                          </Badge>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          {previewQualityIssues.map((issue) => {
+                            const isApproved = approvedPreviewWarningIds.includes(issue.id);
+                            return (
+                              <div key={issue.id} className={`rounded border p-2 ${isApproved ? "border-emerald-500/20 bg-emerald-500/10" : "border-amber-500/20 bg-white"}`}>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-semibold text-slate-800">{issue.title}</span>
+                                      <Badge tone={isApproved ? "green" : "amber"}>{isApproved ? "人工已批准" : "可人工批准"}</Badge>
+                                    </div>
+                                    <p className="mt-1 text-xs leading-5 text-slate-600">{issue.message}</p>
+                                  </div>
+                                  <div className="flex shrink-0 gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => focusQualityIssue(issue)}
+                                      className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:border-blue-400 hover:text-blue-700"
+                                    >
+                                      {issue.actionLabel}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => approvePreviewQualityIssue(issue.id)}
+                                      disabled={isApproved}
+                                      className="rounded bg-emerald-500 px-2 py-1 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-emerald-200"
+                                    >
+                                      {isApproved ? "已批准" : "批准"}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {previewHasQualityIssues ? (
+                            <p className="rounded border border-red-500/20 bg-red-500/10 px-2 py-2 text-xs leading-5 text-red-800">
+                              SVG 预览质量存在硬阻断：需要重新生成或编辑图形，不能人工批准绕过。
+                            </p>
+                          ) : null}
+                          {pendingPreviewQualityIssues.length ? (
+                            <button
+                              type="button"
+                              onClick={approveAllPreviewQualityWarnings}
+                              className="w-full rounded bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500"
+                            >
+                              批准当前预览的全部可接受警告
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
                     ) : (
-                      <p className="rounded border border-blue-500/20 bg-black/20 px-3 py-2 text-xs leading-5 text-blue-100/70">
+                      <p className="rounded border border-blue-500/20 bg-slate-50 px-3 py-2 text-xs leading-5 text-blue-700/70">
                         先在画布中选中一个图标，再进行人工审核。
                       </p>
                     )}
                   </div>
 
-                  <div className="rounded border border-zinc-700 bg-[#18181b] p-3">
+                  <div className="rounded border border-slate-200 bg-white p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-base font-semibold text-zinc-200">系统视觉审核</h3>
-                        <p className="mt-1 text-xs leading-5 text-zinc-500">
+                        <h3 className="text-base font-semibold text-slate-800">系统视觉审核</h3>
+                        <p className="mt-1 text-xs leading-5 text-white/42">
                           系统负责查规范、复杂度、预览确认和截图门禁；不替代设计师最终判断。
                         </p>
                       </div>
@@ -8500,28 +9968,28 @@ export function IconWorkbench() {
                     </div>
                     <div className="mt-3 space-y-2">
                       {visualReviewItems.map((item) => (
-                        <div key={item.label} className="rounded border border-zinc-800 bg-black/30 p-2 text-xs leading-5">
+                        <div key={item.label} className="rounded border border-white/10 bg-white/[0.055] p-2 text-xs leading-5">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-zinc-200">{item.label}</span>
+                            <span className="font-semibold text-slate-800">{item.label}</span>
                             <Badge tone={item.status === "pass" ? "green" : item.status === "warning" ? "amber" : "neutral"}>
                               {item.status === "pass" ? "通过" : item.status === "warning" ? "待处理" : "未开始"}
                             </Badge>
                           </div>
-                          <p className="mt-1 text-zinc-500">{item.detail}</p>
+                          <p className="mt-1 text-white/42">{item.detail}</p>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="rounded border border-zinc-700 bg-[#18181b] p-3">
+                  <div className="rounded border border-slate-200 bg-white p-3">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-base font-semibold text-zinc-200">资产库状态</h3>
+                      <h3 className="text-base font-semibold text-slate-800">资产库状态</h3>
                       <Badge tone={visibleTeamLibrarySummary.count || libraryInstanceCount ? "blue" : "neutral"}>
                         训练库 {visibleTeamLibrarySummary.count} · 本画布 {libraryInstanceCount}
                       </Badge>
                     </div>
                     {teamLibraryTrainingMessage ? (
-                      <p className="mt-2 rounded border border-zinc-800 bg-black/25 px-2 py-1.5 text-xs leading-5 text-zinc-500">
+                      <p className="mt-2 rounded border border-white/10 bg-white/[0.055] px-2 py-1.5 text-xs leading-5 text-white/42">
                         {teamLibraryTrainingMessage}
                       </p>
                     ) : null}
@@ -8533,28 +10001,31 @@ export function IconWorkbench() {
                             onClick={() => setSelectedInstanceId(instance.id)}
                             className={`w-full rounded border p-2 text-left transition ${
                               selectedInstanceId === instance.id
-                                ? "border-blue-400 bg-blue-500/10"
-                                : "border-zinc-800 bg-black/30 hover:border-zinc-500"
+                                ? "border-blue-400 bg-indigo-500/10"
+                                : "border-white/10 bg-white/[0.055] hover:border-slate-300"
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="truncate font-semibold text-zinc-200">{instance.name}</span>
-                              <Badge tone={manualReviewTone(instance.reviewStatus)}>{manualReviewLabel(instance.reviewStatus)}</Badge>
+                              <span className="truncate font-semibold text-slate-800">{instance.name}</span>
+                              <div className="flex items-center gap-1">
+                                <Badge tone={manualReviewTone(instance.reviewStatus)}>{manualReviewLabel(instance.reviewStatus)}</Badge>
+                                <Badge tone={canvasInstanceQualityState(instance, activeOutputProfile).tone}>{canvasInstanceQualityState(instance, activeOutputProfile).label}</Badge>
+                              </div>
                             </div>
-                            <p className="mt-1 truncate text-zinc-500">{sourceLabel(instance.sourceName)}</p>
+                            <p className="mt-1 truncate text-white/42">{sourceLabel(instance.sourceName)}</p>
                           </button>
                         ))
                       ) : (
-                        <p className="rounded border border-dashed border-zinc-700 p-3 text-zinc-500">
+                        <p className="rounded border border-dashed border-slate-200 p-3 text-white/42">
                           画布里还没有图标，无法进入审核。
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="rounded border border-zinc-700 bg-[#18181b] p-3">
+                  <div className="rounded border border-slate-200 bg-white p-3">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-base font-semibold text-zinc-200">Figma 截图门禁</h3>
+                      <h3 className="text-base font-semibold text-slate-800">Figma 截图门禁</h3>
                       <Badge tone={productionRun?.screenshotGate.status === "waiting_for_figma_node" ? "amber" : productionRun ? "green" : "neutral"}>
                         {productionRun?.screenshotGate.status === "waiting_for_figma_node" ? "等待截图" : productionRun ? "任务已准备" : "未开始"}
                       </Badge>
@@ -8564,13 +10035,13 @@ export function IconWorkbench() {
                         "等待 Figma 写入任务准备完成",
                         "写入后截图，并和已确认的预览对比",
                       ]).map((check) => (
-                        <p key={check} className="rounded border border-zinc-800 bg-black/30 px-2 py-1 text-zinc-400">
+                        <p key={check} className="rounded border border-white/10 bg-white/[0.055] px-2 py-1 text-white/42">
                           {check}
                         </p>
                       ))}
                     </div>
                     {productionRun?.screenshotGate.failureBranches.length ? (
-                      <div className="mt-3 rounded border border-amber-500/20 bg-amber-500/10 p-2 text-xs leading-5 text-amber-100">
+                      <div className="mt-3 rounded border border-amber-500/20 bg-amber-500/10 p-2 text-xs leading-5 text-amber-700">
                         {productionRun.screenshotGate.failureBranches.map((branch) => (
                           <p key={branch.failure}>
                             {branch.failure} → return to {branch.returnTo}
@@ -8579,20 +10050,20 @@ export function IconWorkbench() {
                       </div>
                     ) : null}
                   </div>
-                  <div className="rounded border border-zinc-700 bg-[#18181b] p-3">
+                  <div className="rounded border border-slate-200 bg-white p-3">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-base font-semibold text-zinc-200">实时规范问题</h3>
+                      <h3 className="text-base font-semibold text-slate-800">实时规范问题</h3>
                       <Badge tone={specWarnings.length ? "amber" : "green"}>{specWarnings.length ? "需处理" : "通过"}</Badge>
                     </div>
                     <div className="mt-3 space-y-2 text-xs leading-5">
                       {specWarnings.length ? (
                         specWarnings.map((warning) => (
-                          <p key={warning} className="rounded border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-amber-100">
+                          <p key={warning} className="rounded border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-amber-700">
                             {warning}
                           </p>
                         ))
                       ) : (
-                        <p className="rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-emerald-100">
+                        <p className="rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-emerald-700">
                           当前图标符合团队默认规则。
                         </p>
                       )}
