@@ -8710,8 +8710,8 @@ export function IconWorkbench() {
             </button>
           </aside>
 
-          <section className="iconops-canvas-panel iconops-recraft-canvas flex min-h-0 min-w-[420px] flex-1 flex-col overflow-hidden rounded-none border-0 bg-[#181818] shadow-none">
-            <div className="iconops-recraft-canvasbar flex h-12 shrink-0 items-center justify-between border-b border-white/8 bg-[#181818] px-4">
+          <section className="iconops-canvas-panel iconops-recraft-canvas flex min-h-0 min-w-[420px] flex-1 flex-col overflow-hidden rounded-none border-0 bg-[#0a0a0b] shadow-none">
+            <div className="iconops-recraft-canvasbar flex h-12 shrink-0 items-center justify-between border-b border-white/8 bg-[#101011] px-4">
               <div>
                 <span className="text-sm font-semibold text-white/64">Vector canvas</span>
                 <span className="ml-3 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-xs text-white/46">
@@ -8838,7 +8838,7 @@ export function IconWorkbench() {
               ) : null}
               <div
                 ref={canvasViewportRef}
-                className="iconops-stage relative h-full min-h-0 select-none overflow-hidden bg-[#2b2b2b]"
+                className="iconops-stage relative h-full min-h-0 select-none overflow-hidden bg-[#080809]"
                 onWheel={handleCanvasWheel}
                 onPointerDown={startCanvasPan}
                 onClick={() => {
@@ -8854,7 +8854,7 @@ export function IconWorkbench() {
                     isCanvasDropActive ? "border-blue-400 bg-indigo-500/10 opacity-100" : "border-transparent opacity-0"
                   }`}
                 />
-                <div className="iconops-recraft-tool-palette absolute left-4 top-1/2 z-20 -translate-y-1/2 rounded-[22px] border border-white/10 bg-[#2b2b2b]/95 p-2 shadow-2xl shadow-black/35 backdrop-blur-xl">
+                <div className="iconops-recraft-tool-palette absolute left-4 top-1/2 z-20 -translate-y-1/2 rounded-[22px] border border-white/10 bg-[#17181a]/95 p-2 shadow-2xl shadow-black/35 backdrop-blur-xl">
                   <button type="button" className="is-active" title="选择">↖</button>
                   <button type="button" title="拖拽画布">✋</button>
                   <button type="button" onClick={(event) => { event.stopPropagation(); searchCurrentSourceLibrary(); }} title="参考图标">▦</button>
@@ -8926,7 +8926,7 @@ export function IconWorkbench() {
                 </div>
                 <div
                   ref={canvasSurfaceRef}
-                  className="iconops-canvas-surface absolute left-1/2 top-1/2 h-[1200px] w-[1600px] origin-center rounded-[34px] border border-white/10 bg-[linear-gradient(rgba(148,163,184,0.10)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.10)_1px,transparent_1px)] bg-[size:48px_48px] shadow-2xl shadow-black/70"
+                  className="iconops-canvas-surface absolute left-1/2 top-1/2 h-[1200px] w-[1600px] origin-center rounded-[34px] border border-white/10 bg-[#080809] shadow-2xl shadow-black/70"
                   style={{
                     transform: `translate(calc(-50% + ${canvasPan.x}px), calc(-50% + ${canvasPan.y}px)) scale(${canvasZoom})`,
                   }}
